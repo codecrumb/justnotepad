@@ -596,119 +596,119 @@
         });
         $('#create_temp_url #temp_url_nav, #temp_url_box #temp_url_buttons #cancel_url').click(function() {
             $('#temp_url_box').toggle('fast');
-            $('#temp_url_box #temp_url_result').hide();
-            $('#temp_url_box #temp_url_result').html('');
-            $("#temp_url_box #temp_url_password #password").val('');
-            $('#temp_url_box #temp_url_password').show();
+            $('#temp_url_box #temp_url_result').hide().html('');
             $('#temp_url_box #another_temp_url').hide();
             $('#temp_url_box #temp_url_buttons').show();
         });
         $('#temp_url_box #another_temp_url #create_another_url').click(function() {
-            $('#temp_url_box #temp_url_result').hide();
-            $('#temp_url_box #temp_url_result').html('');
-            $("#temp_url_box #temp_url_password #password").val('');
-            $('#temp_url_box #temp_url_password').show();
+            $('#temp_url_box #temp_url_result').hide().html('');
             $('#temp_url_box #another_temp_url').hide();
             $('#temp_url_box #temp_url_buttons').show();
+        });
+        $('#show_token_field').click(function() {
+            $('#telegraph_token_field').toggle();
         });
         $('#count span').click(function() {
             $("#count span").toggle();
         });
 
 
-        //----------------------------------------------------------------------------------------------- 
-        // Temporary URL request (Ajax): 
-        // https://api.jquery.com/submit/ 
-        $('#draft_form').submit(function(event) {
-            //var formData = $('#draft_form');
-            var formData = $(this);
-            // Validation: 
-            // If "password" value length is zero: 
-            if ($("#temp_url_box #temp_url_password #password").val().length === 0) {
-                //$('#temp_url_box #temp_url_result').html('<div class="error">Password cannot be blank.</div>');
-                //$('#temp_url_box #temp_url_result').show();
-                //return false;
-                // Stopping the form from submitting and refreshing the page... 
-                event.preventDefault();
-            } else {
-                // If OK ("password" matches the regex): 
-                if ($("#temp_url_box #temp_url_password #password").val().match(/^[A-Za-z0-9]{8,32}$/)) {
-                    // 1. Start the preloader (registration via "ajaxStart") - before the 1st Ajax request: 
-                    // ajaxStart - Global event (instead of local event - beforeSend) 
-                    // https://api.jquery.com/ajaxStart/  
-                    // https://api.jquery.com/Ajax_Events/ 
-                    $(document).ajaxStart(function() {
-                        $('#temp_url_box #temp_url_result').html('');
-                        $('#temp_url_box #temp_url_result').html('Wait...');
-                        $('#temp_url_box #temp_url_result').show();
-                        $('#temp_url_box #temp_url_buttons #create_url').addClass('preloader_button');
-                        $('#temp_url_box #temp_url_buttons #create_url').attr('disabled', 'disabled');
-                    });
-                    // 2. Sending a request via Ajax: 
-                    // https://api.jquery.com/jquery.ajax/ 
-                    // https://api.jquery.com/category/deferred-object/ 
-                    // https://api.jquery.com/Ajax_Events/ 
-                    var request = $.ajax({
-                        method: 'POST',
-                        //url: 'create_temp_url/',
-                        url: formData.attr('action'),
-                        // Turning form data into a query string 
-                        data: formData.serialize()
-                        //cache: false
-                    });
-                    // Error event: 
-                    // https://api.jquery.com/deferred.fail/ 
-                    request.fail(function(jqXHR, textStatus, errorThrown) {
-                        //$('#temp_url_result').html('<div class="error">error = ' + textStatus + '</div>');
-                        $('#temp_url_box #temp_url_result').html('<div class="error">Oops... Try again...</div>');
-                        $('#temp_url_box #temp_url_result').show();
-                        $('#temp_url_box #temp_url_buttons #create_url').removeClass('preloader_button');
-                        $('#temp_url_box #temp_url_buttons #create_url').removeAttr('disabled');
-                    });
-                    // Success event: 
-                    // https://api.jquery.com/deferred.done/ 
-                    request.done(function(result) {
-                        $('#temp_url_box #temp_url_result').html(result);
-                    });
-                    // Complete event: 
-                    // https://api.jquery.com/deferred.always/ 
-                    request.always(function() {
-                        $('#temp_url_box #temp_url_result').show();
-                        // Regular expression - match(/^\<input.+\>$/) - checks if <div id="temp_url_result"><input ... ></div> 
-                        if ($('#temp_url_box #temp_url_result').html().match(/^\<input.+\>$/)) {
-                            $("#temp_url_box #temp_url_password").hide();
-                            $("#temp_url_box #temp_url_password #password").val('');
-                            $('#temp_url_box #temp_url_buttons').hide();
-                            $('#temp_url_box #another_temp_url').show();
-                        }
-                        $('#temp_url_box #temp_url_buttons #create_url').removeClass('preloader_button');
-                        $('#temp_url_box #temp_url_buttons #create_url').removeAttr('disabled');
-                    });
-                } else if ($("#temp_url_box #temp_url_password #password").val().match(/^[A-Za-z0-9]{33,}$/)) {
-                    // "password" > 32 characters :-( 
-                    $('#temp_url_box #temp_url_result').html('<div class="error">Password must be at most 32&nbsp;characters.</div>');
-                    $('#temp_url_box #temp_url_result').show();
-                    //return false;
-                    // Stopping the form from submitting and refreshing the page... 
-                    event.preventDefault();
-                } else if ($("#temp_url_box #temp_url_password #password").val().match(/^[A-Za-z0-9]{0,7}$/)) {
-                    // "password" < 8 characters :-( 
-                    $('#temp_url_box #temp_url_result').html('<div class="error">Password must be at least 8&nbsp;characters.</div>');
-                    $('#temp_url_box #temp_url_result').show();
-                    //return false;
-                    // Stopping the form from submitting and refreshing the page... 
-                    event.preventDefault();
+        //-----------------------------------------------------------------------------------------------
+        // Telegraph sharing:
+        function getTelegraphToken(callback) {
+            var custom = $('#telegraph_token').val().trim();
+            if (custom) { localStorage.setItem('telegraph_access_token', custom); }
+            var token = localStorage.getItem('telegraph_access_token');
+            if (token) { callback(null, token); return; }
+            $.ajax({
+                url: 'https://api.telegra.ph/createAccount',
+                data: { short_name: 'JustNotepad', author_name: 'JustNotepad User' },
+                dataType: 'json'
+            }).done(function(res) {
+                if (res.ok) {
+                    localStorage.setItem('telegraph_access_token', res.result.access_token);
+                    callback(null, res.result.access_token);
                 } else {
-                    // other cases :-( 
-                    $('#temp_url_box #temp_url_result').html('<div class="error">Password must be at least 8&nbsp;characters and contain a&nbsp;combination of letters&nbsp;(<nobr>A-Z</nobr>,&nbsp;<nobr>a-z</nobr>) and numbers&nbsp;(<nobr>0-9</nobr>).</div>');
-                    $('#temp_url_box #temp_url_result').show();
-                    //return false;
-                    // Stopping the form from submitting and refreshing the page... 
-                    event.preventDefault();
+                    callback(res.error || 'Failed to create account');
+                }
+            }).fail(function() { callback('Network error'); });
+        }
+        function domToTelegraphNodes(el) {
+            var nodes = [], supported = ['p','h3','h4','blockquote','strong','b','em','i','code','pre','ul','ol','li','br','hr','aside','figcaption','s','u'];
+            for (var i = 0; i < el.childNodes.length; i++) {
+                var node = el.childNodes[i];
+                if (node.nodeType === 3) {
+                    if (node.textContent) nodes.push(node.textContent);
+                } else if (node.nodeType === 1) {
+                    var tag = node.tagName.toLowerCase();
+                    if (tag === 'h1' || tag === 'h2') tag = 'h3';
+                    if (tag === 'h5' || tag === 'h6') tag = 'h4';
+                    if (supported.indexOf(tag) !== -1) {
+                        var obj = { tag: tag };
+                        var children = domToTelegraphNodes(node);
+                        if (children.length) obj.children = children;
+                        nodes.push(obj);
+                    } else if (tag === 'a') {
+                        var aobj = { tag: 'a', attrs: { href: node.getAttribute('href') || '#' } };
+                        var achildren = domToTelegraphNodes(node);
+                        if (achildren.length) aobj.children = achildren;
+                        nodes.push(aobj);
+                    } else {
+                        nodes = nodes.concat(domToTelegraphNodes(node));
+                    }
                 }
             }
-            // Stopping the form from submitting and refreshing the page... 
-            event.preventDefault();
+            return nodes;
+        }
+        function extractTitle(md) {
+            var line = md.split('\n')[0].replace(/^#+\s*/, '').replace(/[*_`]/g, '').trim();
+            return (line || 'Untitled Note').slice(0, 256);
+        }
+        $('#create_url').click(function() {
+            var content = inkEditor ? inkEditor.getDoc() : '';
+            if (!content.trim()) {
+                $('#temp_url_box #temp_url_result').html('<div class="error">Nothing to share — write something first.</div>').show();
+                return;
+            }
+            $('#temp_url_box #temp_url_result').html('Sharing...').show();
+            $('#create_url').prop('disabled', true).addClass('preloader_button');
+            getTelegraphToken(function(err, token) {
+                if (err) {
+                    $('#temp_url_box #temp_url_result').html('<div class="error">' + err + '</div>').show();
+                    $('#create_url').prop('disabled', false).removeClass('preloader_button');
+                    return;
+                }
+                import('https://esm.sh/marked').then(function(module) {
+                    var markedFn = module.marked || module.default;
+                    var html = markedFn.parse ? markedFn.parse(content) : markedFn(content);
+                    var div = document.createElement('div');
+                    div.innerHTML = html;
+                    var nodes = domToTelegraphNodes(div);
+                    if (!nodes.length) nodes = [{ tag: 'p', children: [' '] }];
+                    $.ajax({
+                        url: 'https://api.telegra.ph/createPage',
+                        method: 'POST',
+                        data: { access_token: token, title: extractTitle(content), content: JSON.stringify(nodes), return_content: false },
+                        dataType: 'json'
+                    }).done(function(res) {
+                        if (res.ok) {
+                            var url = res.result.url;
+                            $('#temp_url_box #temp_url_result').html('<input type="text" id="temp_url" value="' + url + '" readonly onclick="this.select()" />').show();
+                            $('#temp_url_box #temp_url_buttons').hide();
+                            $('#temp_url_box #another_temp_url').show();
+                        } else {
+                            $('#temp_url_box #temp_url_result').html('<div class="error">Telegraph: ' + (res.error || 'Unknown error') + '</div>').show();
+                        }
+                    }).fail(function() {
+                        $('#temp_url_box #temp_url_result').html('<div class="error">Network error. Try again.</div>').show();
+                    }).always(function() {
+                        $('#create_url').prop('disabled', false).removeClass('preloader_button');
+                    });
+                }).catch(function() {
+                    $('#temp_url_box #temp_url_result').html('<div class="error">Failed to load markdown parser.</div>').show();
+                    $('#create_url').prop('disabled', false).removeClass('preloader_button');
+                });
+            });
         });
     });
     </script>
@@ -740,21 +740,18 @@
 </div>
 <script>(function(){var t=localStorage.getItem('theme'),d=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;if(t==='dark'||(t!=='light'&&d)){var i=document.querySelector('#logo img');if(i)i.src=i.getAttribute('data-dark-src')}})()</script>
 </div>
-<form method="post" action="create_temp_url/" id="draft_form">
 <div id="create_temp_url" style="display:none;">
-<span id="temp_url_nav">Create a Temporary Link for the&nbsp;current&nbsp;text</span>
+<span id="temp_url_nav">Share on Telegraph</span>
 <div id="temp_url_box" style="display:none;">
 <div id="temp_url_result" style="display:none;"></div>
-<div id="temp_url_desc">Temporary link will be available for 2&nbsp;hours only. Then your link will be deleted automatically.</div>
-<div id="temp_url_password"><label style="display:none; margin:0 10px 10px 0;" for="password">Add Password</label><input type="password" name="password" maxlength="32" value="" id="password" autocomplete="off" placeholder="Add Password" required /><div id="password_tip">Use at least 8 characters (letters and numbers).</div></div>
-<div id="temp_url_buttons"><div class="temp_url_button"><button id="create_url" type="submit">Create Link</button></div><div class="temp_url_button"><button id="cancel_url" type="button">Cancel</button></div></div>
-<div id="another_temp_url" style="display:none;"><button id="create_another_url" type="button">Create Another Link</button></div>
+<div id="temp_url_buttons"><div class="temp_url_button"><button id="create_url" type="button">Share</button></div><div class="temp_url_button"><button id="cancel_url" type="button">Cancel</button></div></div>
+<div id="another_temp_url" style="display:none;"><button id="create_another_url" type="button">Share Again</button></div>
+<div id="telegraph_advanced"><span id="show_token_field">Use your own Telegraph token</span><div id="telegraph_token_field" style="display:none;"><input type="text" id="telegraph_token" placeholder="Paste your Telegraph access_token" autocomplete="off" /></div></div>
 </div>
 </div>
 <div id="editable_text_box">
 <div id="editable_text"></div>
 </div>
-</form>
 <div id="printable_text" style="display:none;"></div>
 <div id="count_line">
 <div id="count" style="display:none;">
