@@ -12,6 +12,9 @@
         if (link) {
             link.href = link.getAttribute(dark ? 'data-dark' : 'data-light');
         }
+        if (window.inkEditor) {
+            window.inkEditor.reconfigure({ options: { appearance: dark ? 'dark' : 'light' } });
+        }
         var logo = document.querySelector('#logo img');
         if (logo) {
             var src = logo.getAttribute(dark ? 'data-dark-src' : 'data-light-src');
