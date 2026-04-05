@@ -450,124 +450,133 @@
         }
 
 
-        //----------------------------------------------------------------------------------------------- 
-        // Displays the list of drafts in all "tabs/windows" synchronously: 
-        // 
-        // Start function (without delay) when the 1-st request to the page... 
+        //-----------------------------------------------------------------------------------------------
+        // Generates a random 32-char hex ID for new drafts:
+        function generate_id() {
+            var s = '', h = '0123456789abcdef';
+            for (var i = 0; i < 32; i++) s += h[Math.floor(Math.random() * 16)];
+            return s;
+        }
+
+
+        //-----------------------------------------------------------------------------------------------
+        // Sidebar tab click (event delegation - bound once):
+        $('#sidebar-tabs-list').on('click', '.sidebar-tab', function(e) {
+            if ($(e.target).hasClass('tab-delete')) return;
+            var clicked_id = $(this).data('id');
+            if (clicked_id === draft_id) return;
+            var d = $.jStorage.get("drafts");
+            if (!d) return;
+            for (var h = 0; h < d.length; h++) {
+                if (d[h].id === clicked_id) {
+                    draft_id = clicked_id;
+                    var v = d[h].value;
+                    var dt = new Date(d[h].timestamp * 1000);
+                    $('#editable_text').val(v);
+                    if (v.length < 10000) { $('#printable_text').text(v); } else { $('#printable_text').html(save_the_world_message); }
+                    count_value(v);
+                    $('#count').show();
+                    $('#status_text').html('Saved in your browser storage as draft on ' + month_name[dt.getMonth()] + '&nbsp;' + dt.getDate() + ', ' + dt.getFullYear() + ', at ' + ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2) + ':' + ('0' + dt.getSeconds()).slice(-2));
+                    $('#status_text_by_default').hide();
+                    $('#status_text').show();
+                    $('#create_temp_url').show();
+                    change_page_title(v);
+                    $.jStorage.set('last_modified_id', draft_id);
+                    break;
+                }
+            }
+            $('#sidebar-tabs-list .sidebar-tab').removeClass('active');
+            $(this).addClass('active');
+        });
+        // Delete individual note via × button (event delegation - bound once):
+        $('#sidebar-tabs-list').on('click', '.tab-delete', function(e) {
+            e.stopPropagation();
+            var del_id = $(this).closest('.sidebar-tab').data('id');
+            $("#confirm_lightbox").html('<div id="confirm_message">Delete this note?</div><div id="confirm_buttons"><div id="ok">Delete</div><div id="cancel">Cancel</div></div>');
+            $("#confirm_layer").show();
+            $("#confirm_lightbox").show();
+            $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").click(function() {
+                $("#confirm_layer, #confirm_lightbox").hide();
+            });
+            $("#confirm_lightbox #confirm_buttons #ok").click(function() {
+                var d = $.jStorage.get("drafts");
+                for (var j = 0; j < d.length; j++) {
+                    if (d[j].id === del_id) { d.splice(j, 1); break; }
+                }
+                if (d.length > 0) { $.jStorage.set("drafts", d); } else { $.jStorage.flush(); }
+                if (del_id === draft_id) {
+                    var remaining = $.jStorage.get("drafts");
+                    if (remaining && remaining.length > 0) {
+                        remaining.sort(function(a,b){return b.timestamp-a.timestamp;});
+                        draft_id = remaining[0].id;
+                        var v2 = remaining[0].value;
+                        var dt2 = new Date(remaining[0].timestamp * 1000);
+                        $('#editable_text').val(v2);
+                        if (v2.length < 10000) { $('#printable_text').text(v2); } else { $('#printable_text').html(save_the_world_message); }
+                        count_value(v2);
+                        $('#count').show();
+                        $('#status_text').html('Saved in your browser storage as draft on ' + month_name[dt2.getMonth()] + '&nbsp;' + dt2.getDate() + ', ' + dt2.getFullYear() + ', at ' + ('0' + dt2.getHours()).slice(-2) + ':' + ('0' + dt2.getMinutes()).slice(-2) + ':' + ('0' + dt2.getSeconds()).slice(-2));
+                        $('#status_text_by_default').hide();
+                        $('#status_text').show();
+                        $('#create_temp_url').show();
+                        $.jStorage.set('last_modified_id', draft_id);
+                    } else {
+                        draft_id = generate_id();
+                        $('#editable_text').val('');
+                        $('#printable_text').text('');
+                        $.jStorage.deleteKey('last_modified_id');
+                        $('#count').hide();
+                        $('#count #count_chars, #count #count_words').text('');
+                        $('#status_text').hide();
+                        $('#status_text_by_default').show();
+                        $('#create_temp_url').hide();
+                        document.title = default_page_title;
+                    }
+                }
+                $("#confirm_layer, #confirm_lightbox").hide();
+                list_of_drafts();
+            });
+        });
+
+
+        //-----------------------------------------------------------------------------------------------
+        // Populates the sidebar tab list:
+        //
+        // Start function (without delay) when the 1-st request to the page...
         list_of_drafts();
-        // Auto-updating list of drafts (every 5 sec...) 
+        // Auto-updating list of drafts (every 5 sec...)
         setInterval(list_of_drafts, 5000);
-        // 
+        //
         function list_of_drafts() {
-            // Returns all the keys currently in use as an array 
-            //var index = $.jStorage.index();
             var drafts = $.jStorage.get("drafts");
             var date;
-            //-------------------------------------------------- 
-            // "Function Declaration" to compare timestamp: 
-            function compare(a, b) {
-                return b.timestamp - a.timestamp;
+            function compare(a, b) { return b.timestamp - a.timestamp; }
+            $('#sidebar-tabs-list').empty();
+            if (!drafts || drafts.length === 0) {
+                $('#delete_all_drafts').hide();
+                return;
             }
-            //-------------------------------------------------- 
-            // Removes the old list with tags... 
-            $('#drafts_list').empty();
-            // Check if the main key "drafts" does not exist in the storage for new user: 
-            // Also, for case if a user has deleted "all drafts" via the "Delete All Drafts" button... 
-            if (!drafts) {
-                //$('#editable_text').val('');
-                // Deleting text from <div id="printable_text"> in all "tabs/windows" synchronously... 
-                $('#printable_text').text('');
-                // Hiding the "list of drafts", "counter", "limit notice", "status" and "delete" button in all "tabs/windows" synchronously... 
-                $('#drafts').hide();
-                $('#count #count_chars, #count #count_words').text('');
-                $('#count').hide();
-                $('#limit_notice').hide();
-                $('#status_text').hide();
-                $('#status_text_by_default').show();
-                $('#buttons #delete_draft').hide();
-                $('#create_temp_url').hide();
-                // Restoring <title> of the page/tab/window to the original default title in all "tabs/windows" synchronously... 
-                document.title = default_page_title;
-            // Else, if (the main key "drafts" exists and more than > 0 object in "drafts" array): 
-            // Because a user can delete a last draft (object) via "Delete" button, but actually the "drafts" key still exists... 
-            } else if (drafts && drafts.length > 0) {
-                // Sorts drafts by timestamp via "sort" and function: 
-                drafts = drafts.sort(compare);
-                //--------------------------------------------- 
-                // Displays the new list... 
-                for (var g = 0; g < drafts.length; g++) {
-                    // Converting date (from the 10-digit UNIX-timestamp) to the human style: 
-                    date = new Date(drafts[g].timestamp * 1000);
-                    var formatted_date;
-                    //var formatted_date = date.toLocaleString();
-                    //var formatted_date = date.toLocaleDateString() + ', ' + date.toLocaleTimeString();
-                    if ((date.getMonth() + 1) == (new Date().getMonth() + 1)) {
-                        // Month d, hh:mm:ss 
-                        formatted_date = month_name[date.getMonth()] + ' ' + date.getDate() + ', ' + ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2) + ':' + ('0' + date.getSeconds()).slice(-2);
-                    } else {
-                        // mm.dd.yy, hh:mm 
-                        formatted_date = ('0' + (date.getMonth() + 1)).slice(-2) + '.' + ('0' + date.getDate()).slice(-2) + '.' + ('0' + date.getFullYear()).slice(-2) + ', ' + ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2);
-                    }
-                    // htmlspecialchars filter: 
-                    var safe_value = $('<span></span>').text(drafts[g].value).html();
-                    //var short_value = safe_value.substr(0, 50).trim();
-                    //var short_value = safe_value.slice(0, 50).trim();
-                    // .replace(/\s\s+/g, ' ') - this "regular expression" replaces multiple "whitespace characters" with 1 space. 
-                    var short_value = safe_value.trim().replace(/\s\s+/g, ' ').slice(0, 50).trim();
-                    $('#drafts_list').append('<p><a href="#" id="' + drafts[g].id + '" rel="nofollow">' + formatted_date + '<span> – ' + short_value + '...</span></a></p>');
+            drafts = drafts.sort(compare);
+            for (var g = 0; g < drafts.length; g++) {
+                date = new Date(drafts[g].timestamp * 1000);
+                var formatted_date;
+                if ((date.getMonth() + 1) == (new Date().getMonth() + 1)) {
+                    formatted_date = month_name[date.getMonth()] + ' ' + date.getDate() + ', ' + ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2);
+                } else {
+                    formatted_date = ('0' + (date.getMonth() + 1)).slice(-2) + '.' + ('0' + date.getDate()).slice(-2) + '.' + ('0' + date.getFullYear()).slice(-2);
                 }
-                //--------------------------------------------- 
-                // Selects the draft by click the link: 
-                $('#drafts_list a').click(function() {
-                    for (var h = 0; h < drafts.length; h++) {
-                        if (this.id == drafts[h].id) {
-                            draft_id = this.id;
-                            // Converting date (from the 10-digit UNIX-timestamp) 
-                            date = new Date(drafts[h].timestamp * 1000);
-                            $('#editable_text').val(drafts[h].value);
-                            // Also, replacing text in <div id="printable_text">: 
-                            // 10 000 chars > 2 sheets of paper... 
-                            if (drafts[h].value.length < 10000) {
-                                $('#printable_text').text(drafts[h].value);
-                            } else {
-                                $('#printable_text').html(save_the_world_message);
-                            }
-                            // Start count_value() function to count characters and words... 
-                            count_value(drafts[h].value);
-                            $('#count').show();
-                            // on Month d, yyyy, at hh:mm:ss 
-                            $('#status_text').html('Saved in your browser storage as draft on ' + month_name[date.getMonth()] + '&nbsp;' + date.getDate() + ', ' + date.getFullYear() + ', at ' + ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2) + ':' + ('0' + date.getSeconds()).slice(-2));
-                            $('#status_text_by_default').hide();
-                            $('#status_text').show();
-                            $('#buttons #delete_draft').show();
-                            $('#create_temp_url').show();
-                            // Start function to change <title> of the page/tab/window for the selected draft 
-                            change_page_title(drafts[h].value);
-                            break;
-                        }
-                    }
-                });
-                //--------------------------------------------- 
-                $('#delete_all_drafts').text('Delete All Drafts');
-                $('#delete_all_drafts').show();
-                $('#drafts_header').text('Your drafts automatically saved in your browser storage earlier:');
-                $('#drafts').show();
-            } else {
-                //$('#editable_text').val('');
-                // Deleting text from <div id="printable_text"> in all "tabs/windows" synchronously... 
-                $('#printable_text').text('');
-                // Hiding the "list of drafts" in all "tabs/windows" synchronously: 
-                // Because a user can delete a last draft (object) via "Delete" button, but actually the "drafts" key still exists... 
-                $('#drafts').hide();
-                // And also hiding: "counter", "limit notice", "status" and "delete" button in all "tabs/windows" synchronously... 
-                $('#count #count_chars, #count #count_words').text('');
-                $('#count').hide();
-                $('#limit_notice').hide();
-                $('#status_text').hide();
-                $('#status_text_by_default').show();
-                $('#buttons #delete_draft').hide();
-                $('#create_temp_url').hide();
+                var safe_value = $('<span></span>').text(drafts[g].value).html();
+                var short_value = safe_value.trim().replace(/\s\s+/g, ' ').slice(0, 35).trim() || 'Empty note';
+                var is_active = (drafts[g].id === draft_id) ? ' active' : '';
+                $('#sidebar-tabs-list').append(
+                    '<div class="sidebar-tab' + is_active + '" data-id="' + drafts[g].id + '">' +
+                    '<div class="tab-date">' + formatted_date + '</div>' +
+                    '<div class="tab-preview">' + short_value + '</div>' +
+                    '<span class="tab-delete" title="Delete">&#215;</span>' +
+                    '</div>'
+                );
             }
+            $('#delete_all_drafts').show();
         }
 
 
@@ -606,50 +615,29 @@
         }
 
 
-        //----------------------------------------------------------------------------------------------- 
-        // Buttons: 
-        $('#buttons #new_draft').click(function() {
-            $.jStorage.deleteKey('last_modified_id');
+        //-----------------------------------------------------------------------------------------------
+        // Sidebar controls:
+        $('#sidebar-toggle').click(function() {
+            if ($(window).width() <= 700) {
+                $('#sidebar').toggleClass('open');
+            } else {
+                $('#sidebar').toggleClass('collapsed');
+            }
         });
-        $('#buttons #delete_draft').click(function() {
-            $("#confirm_lightbox").html('<div id="confirm_message">Are you sure you want to delete this draft?</div><div id="confirm_buttons"><div id="ok">Delete</div><div id="cancel">Cancel</div></div>');
-            $("#confirm_layer").show();
-            $("#confirm_lightbox").show();
-            $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").click(function() {
-                $("#confirm_layer, #confirm_lightbox").hide();
-            });
-            $("#confirm_lightbox #confirm_buttons #ok").click(function() {
-                drafts = $.jStorage.get("drafts");
-                $('#editable_text').val('');
-                // Deleting text from <div id="printable_text">: 
-                $('#printable_text').text('');
-                //-------------------------------------------------------------- 
-                // Searching current "draft_id" in the storage via loop... 
-                // "draft_id" - can be "current id" or "id from the list of drafts"...
-                for (var j = 0; j < drafts.length; j++) {
-                    if (drafts[j].id == draft_id) {
-                        // Deletion the current draft object from the array [{...},{removed object},{...}] 
-                        drafts.splice(j, 1);
-                        break;
-                    }
-                }
-                //-------------------------------------------------------------- 
-                $.jStorage.set("drafts", drafts);
-                $.jStorage.deleteKey('last_modified_id');
-                $('#count').hide();
-                $('#count #count_chars, #count #count_words').text('');
-                $('#limit_notice').hide();
-                $('#status_text').hide();
-                $('#status_text').text('');
-                $('#status_text_by_default').show();
-                $('#buttons #delete_draft').hide();
-                $('#create_temp_url').hide();
-                $("#confirm_layer, #confirm_lightbox").hide();
-                // Start function to update list of drafts without delay... 
-                list_of_drafts();
-                // Restoring <title> of the page/tab/window to the original default title 
-                document.title = default_page_title;
-            });
+        $('#sidebar-new-btn').click(function() {
+            draft_id = generate_id();
+            $('#editable_text').val('');
+            $('#printable_text').text('');
+            $.jStorage.deleteKey('last_modified_id');
+            $('#count').hide();
+            $('#count #count_chars, #count #count_words').text('');
+            $('#limit_notice').hide();
+            $('#status_text').hide();
+            $('#status_text_by_default').show();
+            $('#create_temp_url').hide();
+            document.title = default_page_title;
+            list_of_drafts();
+            $('#editable_text').focus();
         });
         $('#delete_all_drafts').click(function() {
             $("#confirm_lightbox").html('<div id="confirm_message">Are you sure you want to delete all your drafts?</div><div id="confirm_buttons"><div id="ok">Delete</div><div id="cancel">Cancel</div></div>');
@@ -659,27 +647,20 @@
                 $("#confirm_layer, #confirm_lightbox").hide();
             });
             $("#confirm_lightbox #confirm_buttons #ok").click(function() {
-                // Clearing the cache... 
                 $.jStorage.flush();
-                //$('#editable_text').val('');
-                // Deleting text from <div id="printable_text">: 
+                draft_id = generate_id();
+                $('#editable_text').val('');
                 $('#printable_text').text('');
-                // Removing tags from the drafts list... 
-                $('#drafts_list').empty();
-                // Hiding "list of drafts", "limit notice", "status", "delete" button and "lightbox" 
-                // in the current "tab/window" only... 
-                $('#drafts').hide();
                 $('#count').hide();
                 $('#count #count_chars, #count #count_words').text('');
                 $('#limit_notice').hide();
                 $('#status_text').hide();
                 $('#status_text').text('');
                 $('#status_text_by_default').show();
-                $('#buttons #delete_draft').hide();
                 $('#create_temp_url').hide();
                 $("#confirm_layer, #confirm_lightbox").hide();
-                // Restoring <title> of the page/tab/window (current only) to the original default title 
                 document.title = default_page_title;
+                list_of_drafts();
             });
         });
         $('#create_temp_url #temp_url_nav, #temp_url_box #temp_url_buttons #cancel_url').click(function() {
@@ -814,15 +795,19 @@
     </script>
 </head>
 <body>
+<div id="app-layout">
+<div id="sidebar">
+<div id="sidebar-header"><span id="sidebar-toggle" title="Toggle sidebar">&#9776;</span></div>
+<div id="sidebar-new-btn">+&nbsp;New</div>
+<div id="sidebar-tabs-list"></div>
+<div id="sidebar-bottom"><div id="delete_all_drafts" style="display:none;">Delete All</div></div>
+</div>
+<div id="main-content">
 <div id="header">
 <div id="logo">
 <a href="https://dulcet-kitsune-ea085c.netlify.app/" title="online notepad"><img src="images/logo.png" data-light-src="images/logo.png" data-dark-src="images/logo_w.png" border="0" alt="online notepad" /></a>
 </div>
 <script>(function(){var t=localStorage.getItem('theme'),d=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;if(t==='dark'||(t!=='light'&&d)){var i=document.querySelector('#logo img');if(i)i.src=i.getAttribute('data-dark-src')}})()</script>
-<div id="buttons">
-<div id="new_draft" onclick="window.open('/', '_blank');">+&nbsp;New</div>
-<div id="delete_draft" style="display:none;">Delete</div>
-</div>
 </div>
 <form method="post" action="create_temp_url/" id="draft_form">
 <div id="create_temp_url" style="display:none;">
@@ -854,11 +839,7 @@
 <div id="limit_notice" style="display:none;"><div></div></div>
 <div id="status_text_by_default">Your text will be saved in your browser storage as draft automatically.</div>
 <div id="status_text" style="display:none;"></div>
-<div id="drafts" style="display:none;">
-<div id="delete_all_drafts"></div>
-<div id="drafts_header"></div>
-<div id="drafts_list"></div>
-</div>
+</div></div>
 <div id="footer">
 <div id="footer_menu"><a href="online-notepad.html">About</a> <a href="faq/">FAQ</a> <a href="terms/">Terms</a> <a href="feedback/">Feedback</a></div>
 <div id="footer_desc">
