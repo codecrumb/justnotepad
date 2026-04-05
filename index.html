@@ -31,7 +31,7 @@
 <link rel="icon" href="images/favicons/favicon_32.png" type="image/png" sizes="32x32" />
 <link rel="icon" href="images/favicons/favicon_16.png" type="image/png" sizes="16x16" />
 
-<link rel="stylesheet" href="styles/global.css" type="text/css" media="screen" />
+<script>(function(){var t=localStorage.getItem('theme'),d=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;document.write('<link id="theme-css" rel="stylesheet" data-light="styles/global.css" data-dark="styles/night_mode.css" href="styles/'+(t==='dark'||(t!=='light'&&d)?'night_mode':'global')+'.css" type="text/css" media="screen">')})()</script><noscript><link rel="stylesheet" href="styles/global.css" type="text/css" media="screen"></noscript>
 <link rel="stylesheet" href="styles/print.css" type="text/css" media="print" />
 <link rel="prefetch" href="styles/night_mode.css" as="style" />
 <link rel="prefetch" href="images/logo_w.png" as="image" />
@@ -69,28 +69,6 @@
         } else {
             $("#temp_url_box #temp_url_password label").hide();
         }
-        //----------------------------------------------------------------------------------------------- 
-        // Day/Night mode: 
-        $('#style_mode span').click(function() {
-            $('#style_mode span').toggle();
-            if ($('#style_mode #night_mode').is(':visible')) {
-                // Check if logo (image file) is loaded via load() before changing CSS, 
-                // when the server (or internet connection) is not available... 
-                $('#logo img').load(function () {
-                    $('link[rel="stylesheet"][media="screen"]').attr('href', 'styles/global.css');
-                    $('#style_mode #day_mode').hide();
-                    $('#style_mode #night_mode').show();
-                }).attr('src', 'images/logo.png');
-            } else {
-                // Check if logo (image file) is loaded via load() before changing CSS, 
-                // when the server (or internet connection) is not available... 
-                $('#logo img').load(function () {
-                    $('link[rel="stylesheet"][media="screen"]').attr('href', 'styles/night_mode.css');
-                    $('#style_mode #night_mode').hide();
-                    $('#style_mode #day_mode').show();
-                }).attr('src', 'images/logo_w.png');
-            }
-        });
     });
     </script>
 
@@ -838,8 +816,9 @@
 <body>
 <div id="header">
 <div id="logo">
-<a href="https://dulcet-kitsune-ea085c.netlify.app/" title="online notepad"><img src="images/logo.png" border="0" alt="online notepad" /></a>
+<a href="https://dulcet-kitsune-ea085c.netlify.app/" title="online notepad"><img src="images/logo.png" data-light-src="images/logo.png" data-dark-src="images/logo_w.png" border="0" alt="online notepad" /></a>
 </div>
+<script>(function(){var t=localStorage.getItem('theme'),d=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;if(t==='dark'||(t!=='light'&&d)){var i=document.querySelector('#logo img');if(i)i.src=i.getAttribute('data-dark-src')}})()</script>
 <div id="buttons">
 <div id="new_draft" onclick="window.open('/', '_blank');">+&nbsp;New</div>
 <div id="delete_draft" style="display:none;">Delete</div>
@@ -867,8 +846,9 @@
 <span id="count_words" style="display:none;"></span>
 </div>
 <div id="style_mode">
-<span id="night_mode"></span>
-<span id="day_mode" style="display:none;"></span>
+<span id="auto_mode"></span>
+<span id="light_mode" style="display:none;"></span>
+<span id="dark_mode" style="display:none;"></span>
 </div>
 </div>
 <div id="limit_notice" style="display:none;"><div></div></div>
@@ -939,6 +919,6 @@ Your text (draft) is stored in your web&nbsp;browser only (on your device only) 
 })(document, window, "yandex_metrika_callbacks");
 </script>
 <noscript><div><img src="https://mc.yandex.ru/watch/31356783" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-
+<script src="js/theme.js"></script>
 </body>
 </html>
