@@ -682,10 +682,8 @@
         }
         function stripTitleLine(md) {
             var lines = md.split('\n');
-            if (lines[0].match(/^#+\s/)) {
-                lines.shift();
-                if (lines.length && lines[0].trim() === '') lines.shift();
-            }
+            lines.shift();
+            if (lines.length && lines[0].trim() === '') lines.shift();
             return lines.join('\n');
         }
         $('#create_url').click(function() {
