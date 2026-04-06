@@ -680,6 +680,14 @@
             var line = md.split('\n')[0].replace(/^#+\s*/, '').replace(/[*_`]/g, '').trim();
             return (line || 'Untitled Note').slice(0, 256);
         }
+        function stripTitleLine(md) {
+            var lines = md.split('\n');
+            if (lines[0].match(/^#+\s/)) {
+                lines.shift();
+                if (lines.length && lines[0].trim() === '') lines.shift();
+            }
+            return lines.join('\n');
+        }
         $('#create_url').click(function() {
             var content = inkEditor ? inkEditor.getDoc() : '';
             if (!content.trim()) {
@@ -696,7 +704,8 @@
                 }
                 import('https://esm.sh/marked').then(function(module) {
                     var markedFn = module.marked || module.default;
-                    var html = markedFn.parse ? markedFn.parse(content) : markedFn(content);
+                    var body = stripTitleLine(content);
+                    var html = markedFn.parse ? markedFn.parse(body) : markedFn(body);
                     var div = document.createElement('div');
                     div.innerHTML = html;
                     var nodes = domToTelegraphNodes(div);
@@ -709,7 +718,16 @@
                     }).done(function(res) {
                         if (res.ok) {
                             var url = res.result.url;
-                            $('#temp_url_box #temp_url_result').html('<input type="text" id="temp_url" value="' + url + '" readonly onclick="this.select()" />').show();
+                            $('#temp_url_box #temp_url_result').html('<input type="text" id="temp_url" value="' + url + '" readonly onclick="this.select()" /><button id="copy_url" type="button">Copy</button>').show();
+                            if (navigator.clipboard) { navigator.clipboard.writeText(url).catch(function(){}); }
+                            $('#copy_url').click(function() {
+                                if (navigator.clipboard) {
+                                    navigator.clipboard.writeText(url).then(function() { $('#copy_url').text('Copied!'); setTimeout(function(){ $('#copy_url').text('Copy'); }, 2000); });
+                                } else {
+                                    document.getElementById('temp_url').select(); document.execCommand('copy');
+                                    $('#copy_url').text('Copied!'); setTimeout(function(){ $('#copy_url').text('Copy'); }, 2000);
+                                }
+                            });
                             $('#temp_url_box #temp_url_buttons').hide();
                             $('#temp_url_box #another_temp_url').show();
                         } else {
