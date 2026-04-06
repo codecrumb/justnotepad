@@ -391,11 +391,26 @@
 
 
         //-----------------------------------------------------------------------------------------------
+        // Delete the current draft immediately if it is empty (called before switching away):
+        function delete_current_if_empty() {
+            var doc = inkEditor ? inkEditor.getDoc() : '';
+            if (doc.trim() !== '') return;
+            var d = $.jStorage.get("drafts");
+            if (!d) return;
+            for (var i = 0; i < d.length; i++) {
+                if (d[i].id === draft_id) { d.splice(i, 1); break; }
+            }
+            if (d.length > 0) { $.jStorage.set("drafts", d); } else { $.jStorage.flush(); }
+        }
+
+
+        //-----------------------------------------------------------------------------------------------
         // Sidebar tab click (event delegation - bound once):
         $('#sidebar-tabs-list').on('click', '.sidebar-tab', function(e) {
             if ($(e.target).hasClass('tab-delete')) return;
             var clicked_id = $(this).data('id');
             if (clicked_id === draft_id) return;
+            delete_current_if_empty();
             var d = $.jStorage.get("drafts");
             if (!d) return;
             for (var h = 0; h < d.length; h++) {
@@ -556,6 +571,7 @@
             }
         });
         $('#sidebar-new-btn').click(function() {
+            delete_current_if_empty();
             draft_id = generate_id();
             editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
             $('#printable_text').text('');
