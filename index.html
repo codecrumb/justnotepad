@@ -586,6 +586,7 @@
             $('#create_temp_url').hide(); $('#download_note').hide();
             document.title = default_page_title;
             list_of_drafts();
+            if ($(window).width() <= 700) { $('#sidebar').removeClass('open'); }
             if (inkEditor) inkEditor.focus();
         });
         $('#delete_all_drafts').click(function() {
