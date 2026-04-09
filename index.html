@@ -127,29 +127,6 @@
 })();
 </script>
 
-<script type="text/javascript">
-    $(document).ready(function() {
-        //-----------------------------------------------------------------------------------------------
-        // Height of the text box depending on the visible area:
-        function updateEditorHeight() {
-            $('#editable_text_box').height(($(window).height() / 100) * 48);
-        }
-        updateEditorHeight();
-        $(window).resize(updateEditorHeight);
-        //----------------------------------------------------------------------------------------------- 
-        // Shows Label (Instead of Placeholder) for IE<=9 and older browsers: 
-        function isPlaceholderSupported() {
-            var input = document.createElement("input");
-            return ('placeholder' in input);
-        }
-        var placeholdersupport = isPlaceholderSupported();
-        if (placeholdersupport == false) {
-            $("#temp_url_box #temp_url_password label").show();
-        } else {
-            $("#temp_url_box #temp_url_password label").hide();
-        }
-    });
-    </script>
 
 
 <script type="text/javascript">
@@ -763,12 +740,6 @@
 <div id="sidebar-bottom"><div id="delete_all_drafts" style="display:none;">Delete All</div></div>
 </div>
 <div id="main-content">
-<div id="header">
-<div id="logo">
-<a href="https://dulcet-kitsune-ea085c.netlify.app/" title="online notepad"><img src="images/logo.png" data-light-src="images/logo.png" data-dark-src="images/logo_w.png" border="0" alt="online notepad" /></a>
-</div>
-<script>(function(){var t=localStorage.getItem('theme'),d=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;if(t==='dark'||(t!=='light'&&d)){var i=document.querySelector('#logo img');if(i)i.src=i.getAttribute('data-dark-src')}})()</script>
-</div>
 <div id="create_temp_url" style="display:none;">
 <span id="temp_url_nav">Share on Telegraph</span>
 <div id="temp_url_box" style="display:none;">
@@ -798,37 +769,6 @@
 <div id="status_text_by_default">Your text will be saved in your browser storage as draft automatically.</div>
 <div id="status_text" style="display:none;"></div>
 </div></div>
-<div id="footer">
-<div id="footer_menu"><a href="online-notepad.html">About</a> <a href="faq/">FAQ</a> <a href="terms/">Terms</a> <a href="feedback/">Feedback</a></div>
-<div id="footer_desc">
-<p>JustNotepad.com is a free <strong>online notepad</strong> in your web&nbsp;browser. With JustNotepad.com you can create notes (ideas, to-do list, links, or any other plain text) that you would like to write just in a web&nbsp;browser <strong>online</strong>. This simple <nobr><strong><a href="https://dulcet-kitsune-ea085c.netlify.app/" title="online notepad">online notepad</a></strong></nobr> has AutoSave feature and allows you to restore your text "as&nbsp;a&nbsp;draft" even if you have closed your web&nbsp;browser/window or browser&nbsp;tab (if it is technologically possible and is supported by a&nbsp;web&nbsp;browser). Therefore, you can easily return to your text notes anytime.<br />
-Your text (draft) is stored in your web&nbsp;browser only (on your device only) and is not available to anyone. But if you want to send your text note to your friend or to another device, you can create a Temporary&nbsp;link to sync your text.</p>
-<p>In addition, this online notepad works like a "multi-page" notepad and allows you to manage drafts (notes). All created notes (drafts) are named "by&nbsp;date" and "time", to easily identify your note.</p>
-<p>JustNotepad.com is not a "text editor" and has no text formatting. If you need a real multifunctional special text editor with text formatting tools etc., you can <a href="https://duckduckgo.com/?q=download+text+editor" target="_blank" rel="nofollow">find</a> a lot of different applications (any <a href="https://en.wikipedia.org/wiki/List_of_word_processors" target="_blank" rel="nofollow">Word&nbsp;processor</a> or <a href="https://en.wikipedia.org/wiki/List_of_text_editors" target="_blank" rel="nofollow">Text editor</a>) for your special needs. Or you can download and install, for example the free and open-source <a href="https://www.libreoffice.org/" target="_blank" rel="nofollow">LibreOffice&nbsp;Writer</a> (for Windows, Mac&nbsp;OS&nbsp;X and Linux).</p>
-</div>
-<div id="footer_bottom_line">
-<div id="footer_social_b">
-<div class="addthis_toolbox addthis_default_style" addthis:url="http://justnotepad.com">
-<a class="addthis_button_facebook_like" fb:like:layout="button_count" style="display:inline-block; margin-right:15px; margin-bottom:10px;" rel="nofollow"></a>
-<a class="addthis_button_tweet" style="display:inline-block; margin-right:17px; margin-bottom:10px;" rel="nofollow"></a>
-<div class="share_icons" style="display:inline-block;">
-<a class="addthis_button_tumblr" style="margin:1px 7px 1px 0;" rel="nofollow"></a>
-<a class="addthis_button_stumbleupon" style="margin:1px 7px;" rel="nofollow"></a>
-<a class="addthis_button_pocket" style="margin:1px 7px;" rel="nofollow"></a>
-<a class="addthis_button_email" style="margin:1px 7px;" rel="nofollow"></a>
-<a class="addthis_button_compact" style="margin:1px 7px; text-decoration:none;" rel="nofollow">...</a>
-
-</div>
-</div>
-<script type="text/javascript">var addthis_config = {ui_language: "en"};</script>
-<script type="text/javascript" src="https://s7.addthis.com/js/300/addthis_widget.js#pubid=ra-55a055a5ea63f288" async="async"></script>
-</div>
-<div id="footer_lang"></div>
-</div>
-<div id="footer_please_note">
-<p>Note: JustNotepad.com is not a replacement for your real paper notepad and can not be used as a service of backup of text.</p>
-</div>
-</div>
 <div id="confirm_layer" style="display:none;"></div>
 <div id="confirm_lightbox" style="display:none;"></div>
 
