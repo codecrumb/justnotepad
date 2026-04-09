@@ -256,7 +256,7 @@
                 $('#create_temp_url').show(); $('#download_note').show();
                 count_value(value);
                 $('#count').show();
-                $('#status_text').html('Saved in your browser storage as draft on ' + month_name[date.getMonth()] + '&nbsp;' + date.getDate() + ', ' + date.getFullYear() + ', at ' + ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2) + ':' + ('0' + date.getSeconds()).slice(-2));
+                $('#status_text').html('Saved on ' + month_name[date.getMonth()] + '&nbsp;' + date.getDate() + ', ' + date.getFullYear() + ', at ' + ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2) + ':' + ('0' + date.getSeconds()).slice(-2));
                 $('#status_text_by_default').hide();
                 $('#status_text').show();
             }
@@ -753,6 +753,12 @@
 <div id="sidebar-theme"><div id="style_mode"><span id="auto_mode"></span><span id="light_mode" style="display:none;"></span><span id="dark_mode" style="display:none;"></span></div></div>
 </div>
 <div id="main-content">
+<div id="editable_text_box">
+<div id="editable_text"></div>
+</div>
+<div id="printable_text" style="display:none;"></div>
+<div id="limit_notice" style="display:none;"><div></div></div>
+<div id="bottom-bar">
 <div id="create_temp_url" style="display:none;">
 <span id="temp_url_nav">Share on Telegraph</span>
 <div id="temp_url_box" style="display:none;">
@@ -763,19 +769,15 @@
 </div>
 </div>
 <div id="download_note" style="display:none;"><span id="download_md">&#8595; .md</span></div>
-<div id="editable_text_box">
-<div id="editable_text"></div>
-</div>
-<div id="printable_text" style="display:none;"></div>
 <div id="count_line">
 <div id="count" style="display:none;">
 <span id="count_chars"></span>
 <span id="count_words" style="display:none;"></span>
 </div>
 </div>
-<div id="limit_notice" style="display:none;"><div></div></div>
 <div id="status_text_by_default">Your text will be saved in your browser storage as draft automatically.</div>
 <div id="status_text" style="display:none;"></div>
+</div>
 </div></div>
 <div id="confirm_layer" style="display:none;"></div>
 <div id="confirm_lightbox" style="display:none;"></div>
