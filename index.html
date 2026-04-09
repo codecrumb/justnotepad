@@ -249,7 +249,7 @@
         // Initialize UI from loaded drafts:
         if (!drafts) {
             $('#buttons #delete_draft').hide();
-            $('#create_temp_url').hide();
+            $('#create_temp_url').hide(); $('#download_note').hide();
         } else {
             for (var a = 0; a < drafts.length; a++) {
                 if (drafts[a].id == draft_id) {
@@ -260,7 +260,7 @@
             }
             if (!value || status_value_from_url == 'yes') {
                 $('#buttons #delete_draft').hide();
-                $('#create_temp_url').hide();
+                $('#create_temp_url').hide(); $('#download_note').hide();
             } else {
                 // Auto-skip very large last draft to prevent browser freeze (>1M chars):
                 for (var b = 0; b < drafts.length; b++) {
@@ -276,7 +276,7 @@
                     $('#printable_text').html(save_the_world_message);
                 }
                 $('#buttons #delete_draft').show();
-                $('#create_temp_url').show();
+                $('#create_temp_url').show(); $('#download_note').show();
                 count_value(value);
                 $('#count').show();
                 $('#status_text').html('Saved in your browser storage as draft on ' + month_name[date.getMonth()] + '&nbsp;' + date.getDate() + ', ' + date.getFullYear() + ', at ' + ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2) + ':' + ('0' + date.getSeconds()).slice(-2));
@@ -363,7 +363,7 @@
 
             if (new_value.length < 10000) { $('#printable_text').text(new_value); } else { $('#printable_text').html(save_the_world_message); }
             $('#buttons #delete_draft').show();
-            $('#create_temp_url').show();
+            $('#create_temp_url').show(); $('#download_note').show();
             $('#count').show();
             $('#status_text_by_default').hide();
             $('#status_text').show();
@@ -380,6 +380,23 @@
             for (var i = 0; i < 32; i++) s += h[Math.floor(Math.random() * 16)];
             return s;
         }
+
+
+        //-----------------------------------------------------------------------------------------------
+        // Download note as .md or .txt:
+        function download_note(ext) {
+            var content = inkEditor ? inkEditor.getDoc() : '';
+            if (!content) return;
+            var firstLine = content.split('\n')[0].replace(/^#+\s*/, '').trim().slice(0, 60);
+            var filename = (firstLine || 'note').replace(/[^a-zA-Z0-9 \-_]/g, '').trim().replace(/\s+/g, '_') || 'note';
+            var blob = new Blob([content], { type: 'text/plain' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = filename + '.' + ext;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+        }
+        $('#download_md').click(function() { download_note('md'); });
 
 
         //-----------------------------------------------------------------------------------------------
@@ -413,7 +430,7 @@
                     $('#status_text').html('Saved in your browser storage as draft on ' + month_name[dt.getMonth()] + '&nbsp;' + dt.getDate() + ', ' + dt.getFullYear() + ', at ' + ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2) + ':' + ('0' + dt.getSeconds()).slice(-2));
                     $('#status_text_by_default').hide();
                     $('#status_text').show();
-                    $('#create_temp_url').show();
+                    $('#create_temp_url').show(); $('#download_note').show();
                     change_page_title(v);
                     localStorage.setItem('last_modified_id', draft_id);
                     break;
@@ -449,7 +466,7 @@
                         $('#status_text').html('Saved in your browser storage as draft on ' + month_name[dt2.getMonth()] + '&nbsp;' + dt2.getDate() + ', ' + dt2.getFullYear() + ', at ' + ('0' + dt2.getHours()).slice(-2) + ':' + ('0' + dt2.getMinutes()).slice(-2) + ':' + ('0' + dt2.getSeconds()).slice(-2));
                         $('#status_text_by_default').hide();
                         $('#status_text').show();
-                        $('#create_temp_url').show();
+                        $('#create_temp_url').show(); $('#download_note').show();
                         localStorage.setItem('last_modified_id', draft_id);
                     } else {
                         draft_id = generate_id();
@@ -460,7 +477,7 @@
                         $('#count #count_chars, #count #count_words').text('');
                         $('#status_text').hide();
                         $('#status_text_by_default').show();
-                        $('#create_temp_url').hide();
+                        $('#create_temp_url').hide(); $('#download_note').hide();
                         document.title = default_page_title;
                     }
                 }
@@ -551,7 +568,7 @@
             $('#limit_notice').hide();
             $('#status_text').hide();
             $('#status_text_by_default').show();
-            $('#create_temp_url').hide();
+            $('#create_temp_url').hide(); $('#download_note').hide();
             document.title = default_page_title;
             list_of_drafts();
             if (inkEditor) inkEditor.focus();
@@ -575,7 +592,7 @@
                 $('#status_text').hide();
                 $('#status_text').text('');
                 $('#status_text_by_default').show();
-                $('#create_temp_url').hide();
+                $('#create_temp_url').hide(); $('#download_note').hide();
                 $("#confirm_layer, #confirm_lightbox").hide();
                 document.title = default_page_title;
                 list_of_drafts();
@@ -753,6 +770,7 @@
 <div id="telegraph_advanced"><span id="show_token_field">Use your own Telegraph token</span><div id="telegraph_token_field" style="display:none;"><input type="text" id="telegraph_token" placeholder="Paste your Telegraph access_token" autocomplete="off" /></div></div>
 </div>
 </div>
+<div id="download_note" style="display:none;"><span id="download_md">&#8595; .md</span></div>
 <div id="editable_text_box">
 <div id="editable_text"></div>
 </div>
