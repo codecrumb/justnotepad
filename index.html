@@ -383,6 +383,17 @@
 
 
         //-----------------------------------------------------------------------------------------------
+        // Reset Telegraph share box when switching notes:
+        function reset_telegraph_box() {
+            $('#temp_url_box').hide();
+            $('#temp_url_result').hide().html('');
+            $('#temp_url_buttons').show();
+            $('#another_temp_url').hide();
+            $('#create_url').prop('disabled', false).removeClass('preloader_button');
+        }
+
+
+        //-----------------------------------------------------------------------------------------------
         // Download note as .md or .txt:
         function download_note(ext) {
             var content = inkEditor ? inkEditor.getDoc() : '';
@@ -430,6 +441,7 @@
                     $('#status_text').html('Saved in your browser storage as draft on ' + month_name[dt.getMonth()] + '&nbsp;' + dt.getDate() + ', ' + dt.getFullYear() + ', at ' + ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2) + ':' + ('0' + dt.getSeconds()).slice(-2));
                     $('#status_text_by_default').hide();
                     $('#status_text').show();
+                    reset_telegraph_box();
                     $('#create_temp_url').show(); $('#download_note').show();
                     change_page_title(v);
                     localStorage.setItem('last_modified_id', draft_id);
@@ -466,6 +478,7 @@
                         $('#status_text').html('Saved in your browser storage as draft on ' + month_name[dt2.getMonth()] + '&nbsp;' + dt2.getDate() + ', ' + dt2.getFullYear() + ', at ' + ('0' + dt2.getHours()).slice(-2) + ':' + ('0' + dt2.getMinutes()).slice(-2) + ':' + ('0' + dt2.getSeconds()).slice(-2));
                         $('#status_text_by_default').hide();
                         $('#status_text').show();
+                        reset_telegraph_box();
                         $('#create_temp_url').show(); $('#download_note').show();
                         localStorage.setItem('last_modified_id', draft_id);
                     } else {
@@ -473,6 +486,7 @@
                         editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
                         $('#printable_text').text('');
                         localStorage.removeItem('last_modified_id');
+                        reset_telegraph_box();
                         $('#count').hide();
                         $('#count #count_chars, #count #count_words').text('');
                         $('#status_text').hide();
@@ -563,6 +577,7 @@
             editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
             $('#printable_text').text('');
             localStorage.removeItem('last_modified_id');
+            reset_telegraph_box();
             $('#count').hide();
             $('#count #count_chars, #count #count_words').text('');
             $('#limit_notice').hide();
@@ -586,6 +601,7 @@
                 draft_id = generate_id();
                 editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
                 $('#printable_text').text('');
+                reset_telegraph_box();
                 $('#count').hide();
                 $('#count #count_chars, #count #count_words').text('');
                 $('#limit_notice').hide();
