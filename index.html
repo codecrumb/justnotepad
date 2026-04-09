@@ -541,14 +541,19 @@
 
         //-----------------------------------------------------------------------------------------------
         // Sidebar controls:
+        if ($(window).width() > 700 && localStorage.getItem('sidebar_collapsed') === '1') {
+            $('#sidebar').addClass('collapsed');
+        }
         $('#sidebar-toggle').click(function() {
             if ($(window).width() <= 700) {
                 $('#sidebar').toggleClass('open');
             } else {
                 if ($('#sidebar').hasClass('collapsed')) {
                     $('#sidebar').removeClass('collapsed just-collapsed');
+                    localStorage.removeItem('sidebar_collapsed');
                 } else {
                     $('#sidebar').addClass('collapsed just-collapsed');
+                    localStorage.setItem('sidebar_collapsed', '1');
                 }
             }
         });
