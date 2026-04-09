@@ -37,17 +37,95 @@
 <link rel="prefetch" href="images/logo_w.png" as="image" />
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
 <link rel="preconnect" href="https://s7.addthis.com" />
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/json2/20150503/json2.min.js"></script>
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
 
 <script type="text/javascript">
     if (!window.jQuery) {
-        document.write('<script type="text/javascript" src="js/json2/20150503/json2.min.js"><\/script>\n');
         document.write('<script type="text/javascript" src="js/jquery/1.9.1/jquery.min.js"><\/script>\n');
-        document.write('<script type="text/javascript" src="js/jstorage/0.4.12/jstorage.min.js"><\/script>\n');
     }
     </script>
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jStorage/0.4.12/jstorage.min.js"></script>
+
+<script>
+(function() {
+    var DB_NAME = 'justnotepad', STORE = 'drafts', DB_VER = 1, _db = null;
+
+    function openDB() {
+        return new Promise(function(resolve, reject) {
+            if (_db) { resolve(_db); return; }
+            var req = indexedDB.open(DB_NAME, DB_VER);
+            req.onupgradeneeded = function(e) {
+                var db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE)) {
+                    db.createObjectStore(STORE, { keyPath: 'id' });
+                }
+            };
+            req.onsuccess = function(e) { _db = e.target.result; resolve(_db); };
+            req.onerror   = function(e) { reject(e.target.error); };
+        });
+    }
+
+    window.NoteDB = {
+        open: function() { return openDB(); },
+
+        getAll: function() {
+            return openDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
+                    req.onsuccess = function()  { resolve(req.result); };
+                    req.onerror   = function(e) { reject(e.target.error); };
+                });
+            });
+        },
+
+        put: function(draft) {
+            return openDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var req = db.transaction(STORE, 'readwrite').objectStore(STORE).put(draft);
+                    req.onsuccess = function()  { resolve(); };
+                    req.onerror   = function(e) { reject(e.target.error); };
+                });
+            });
+        },
+
+        delete: function(id) {
+            return openDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var req = db.transaction(STORE, 'readwrite').objectStore(STORE).delete(id);
+                    req.onsuccess = function()  { resolve(); };
+                    req.onerror   = function(e) { reject(e.target.error); };
+                });
+            });
+        },
+
+        clear: function() {
+            return openDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var req = db.transaction(STORE, 'readwrite').objectStore(STORE).clear();
+                    req.onsuccess = function()  { resolve(); };
+                    req.onerror   = function(e) { reject(e.target.error); };
+                });
+            });
+        },
+
+        putAll: function(draftsArray) {
+            return openDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var tx = db.transaction(STORE, 'readwrite');
+                    var store = tx.objectStore(STORE);
+                    var i = 0;
+                    function next() {
+                        if (i >= draftsArray.length) { resolve(); return; }
+                        var req = store.put(draftsArray[i++]);
+                        req.onsuccess = next;
+                        req.onerror   = function(e) { reject(e.target.error); };
+                    }
+                    next();
+                });
+            });
+        }
+    };
+})();
+</script>
 
 <script type="text/javascript">
     $(document).ready(function() {
@@ -78,34 +156,72 @@
     /*
      * Copyright (c) JustNotepad.com
      * https://dulcet-kitsune-ea085c.netlify.app/
-     * Uses cross-browser Local Storage
-     * Thanks to jStorage ;-)
+     * Uses IndexedDB via NoteDB wrapper
     */
     $(document).ready(function() {
-        var drafts = $.jStorage.get("drafts");
-        var last_modified_id = $.jStorage.get('last_modified_id');
+
+        // Fire the ink-mde import IMMEDIATELY — before any await — so a storage
+        // failure can never block the editor from loading.
+        var inkModulePromise = import('https://esm.sh/ink-mde');
+
+        (async function initApp() {
+
         var draft_id;
         var value;
         var date;
-        var current_stored_value;
         var month_name = new Array("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec");
-        var save_the_world_message = '<h1>Save Paper. Save Trees. Save the World.</h1><h2>It seems that your text more than 2 sheets of paper...</h2><p>If you want to send your text to your friend or to another device, you can just create a “Temporary link” to sync your text.</p><p>https://dulcet-kitsune-ea085c.netlify.app/faq/#16</p><p>Thanks ;-)</p>';
+        var save_the_world_message = '<h1>Save Paper. Save Trees. Save the World.</h1><h2>It seems that your text more than 2 sheets of paper...</h2><p>If you want to send your text to your friend or to another device, you can just create a "Temporary link" to sync your text.</p><p>https://dulcet-kitsune-ea085c.netlify.app/faq/#16</p><p>Thanks ;-)</p>';
         var default_page_title = 'JustNotepad.com - Online notepad. Create note online';
         var status_value_from_url = '';
         var inkEditor = null;
         var editor_updating = false;
+        var saveTimer = null;
 
 
-        // If the value of the text from a "Temporary URL" exists: 
-        if (status_value_from_url == 'yes') {
-            $.jStorage.deleteKey('last_modified_id');
-        } else {
-            last_modified_id = $.jStorage.get('last_modified_id');
+        //-----------------------------------------------------------------------------------------------
+        // One-time migration: move jStorage data into IndexedDB on first run.
+        async function migrateFromJStorage() {
+            var raw = localStorage.getItem('__jstorage');
+            if (!raw) return;
+            try {
+                var parsed = JSON.parse(raw);
+                var oldDrafts = parsed['drafts'];
+                var oldLastId = parsed['last_modified_id'];
+                if (Array.isArray(oldDrafts) && oldDrafts.length > 0) {
+                    await NoteDB.putAll(oldDrafts);
+                }
+                if (oldLastId) {
+                    localStorage.setItem('last_modified_id', oldLastId);
+                }
+                localStorage.removeItem('__jstorage'); // only removed after successful write
+            } catch(e) {
+                console.warn('jStorage migration failed (will retry next load):', e);
+            }
         }
 
 
-        // If "last_modified_id" is false (For a new draft), 
-        // or (||) if a user is redirected via "Temporary URL": 
+        //-----------------------------------------------------------------------------------------------
+        // Open DB and migrate, then load drafts. Editor always initializes even if this fails.
+        var drafts = null;
+        var last_modified_id = null;
+        try {
+            await NoteDB.open();
+            await migrateFromJStorage();
+            var allDrafts = await NoteDB.getAll();
+            drafts = (allDrafts && allDrafts.length > 0) ? allDrafts : null;
+        } catch(e) {
+            console.error('Storage init failed:', e);
+        }
+
+
+        //-----------------------------------------------------------------------------------------------
+        // Resolve last_modified_id and draft_id from raw localStorage:
+        if (status_value_from_url == 'yes') {
+            localStorage.removeItem('last_modified_id');
+        } else {
+            last_modified_id = localStorage.getItem('last_modified_id');
+        }
+
         if (!last_modified_id || status_value_from_url == 'yes') {
             draft_id = '60fe463d1c670551f5a5f470722b0efb';
         } else {
@@ -113,7 +229,7 @@
         }
 
 
-        //----------------------------------------------------------------------------------------------- 
+        //-----------------------------------------------------------------------------------------------
         function count_value(value) {
             $('#count #count_chars').text('Characters: ' + value.length + ' (with spaces)');
             if (value.length === 0 || value.match(/^\s*$/)) {
@@ -123,67 +239,37 @@
             }
         }
 
-
-        //----------------------------------------------------------------------------------------------- 
-        // Changing <title> of the page/tab/window for the current draft: 
         function change_page_title(value) {
-            // The html entities (including special characters, line breaks and whitespace chars) inside <title> tag are converted automatically by browser... 
-            // .replace(/\s\s+/g, ' ') - this "regular expression" replaces multiple "whitespace characters" with 1 space. 
-            // Multiple "whitespace characters" - is visible only in the DOM inspector. 
-            // Also, cutting the string to 25 characters. 
-            //var short_page_title_value = value.trim().replace(/\s\s+/g, ' ').substr(0, 25).trim();
             var short_page_title_value = value.trim().replace(/\s\s+/g, ' ').slice(0, 25).trim();
-            document.title = '“' + short_page_title_value + '...” – Draft – JustNotepad.com';
+            document.title = '"' + short_page_title_value + '..." – Draft – JustNotepad.com';
         }
 
 
-        //----------------------------------------------------------------------------------------------- 
-        // Check if the main key "drafts" does not exist in the storage (for a new user): 
+        //-----------------------------------------------------------------------------------------------
+        // Initialize UI from loaded drafts:
         if (!drafts) {
-            // Check if the value of the text from a "Temporary URL" does not exists: 
-            //if (status_value_from_url != 'yes') {
-            //    $('#editable_text').text('Your text...');
-            //}
             $('#buttons #delete_draft').hide();
             $('#create_temp_url').hide();
         } else {
-            //----------------------------------------------------- 
-            // Getting value of "value" via loop... 
             for (var a = 0; a < drafts.length; a++) {
                 if (drafts[a].id == draft_id) {
                     value = drafts[a].value;
-                    // Converting date (from the 10-digit UNIX-timestamp) 
                     date = new Date(drafts[a].timestamp * 1000);
                     break;
                 }
             }
-            //----------------------------------------------------- 
-            // Check if "value" does not exist in the storage (for a new draft), 
-            // or (||) if a user is redirected via "Temporary URL": 
             if (!value || status_value_from_url == 'yes') {
                 $('#buttons #delete_draft').hide();
                 $('#create_temp_url').hide();
             } else {
-                //----------------------------------------------------- 
-                // Auto hiding a very large text in <textarea>: 
-                // - if the last modified text more than > 1 000 000 characters, 
-                // - if ID equals = "last_modified_id" 
-                // User can create very large text and then close the tab/window/browser. But later, the user can return to the site. 
-                // Therefore, to prevent browser freezes, it cleans the textarea (by deleting last_modified_id). 
-                // The user can switch to the last draft manually in the drafts list after refreshing the page later... 
-                // 1 000 000 characters - the optimum max length of the text to open the site in the browser tab without critical delay... 
-                // 1 000 000 - 2 500 000 characters - such length slows the opening of the site in the browser tab :-\ 
+                // Auto-skip very large last draft to prevent browser freeze (>1M chars):
                 for (var b = 0; b < drafts.length; b++) {
                     if ((drafts[b].id == last_modified_id) && (drafts[b].value.length > 1000000)) {
-                        $.jStorage.deleteKey('last_modified_id');
-                        // Auto refreshing the page to generate a new ID (draft_id) for a new empty draft (true - disables caching)... 
+                        localStorage.removeItem('last_modified_id');
                         location.reload(true);
                         break;
                     }
                 }
-                //-----------------------------------------------------
-                // Copying text to <div id="printable_text">:
-                // 10 000 chars > 2 sheets of paper...
                 if (value.length < 10000) {
                     $('#printable_text').text(value);
                 } else {
@@ -191,10 +277,8 @@
                 }
                 $('#buttons #delete_draft').show();
                 $('#create_temp_url').show();
-                // Start count_value() function to count characters and words...
                 count_value(value);
                 $('#count').show();
-                // on Month d, yyyy, at hh:mm:ss
                 $('#status_text').html('Saved in your browser storage as draft on ' + month_name[date.getMonth()] + '&nbsp;' + date.getDate() + ', ' + date.getFullYear() + ', at ' + ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2) + ':' + ('0' + date.getSeconds()).slice(-2));
                 $('#status_text_by_default').hide();
                 $('#status_text').show();
@@ -203,17 +287,16 @@
 
 
         //-----------------------------------------------------------------------------------------------
-        // Initialize ink-mde markdown editor:
-        import('https://esm.sh/ink-mde').then(function(module) {
-            var ink = module.default;
+        // Initialize ink-mde (await the already-loading promise — never blocked by storage):
+        try {
+            var inkModule = await inkModulePromise;
+            var ink = inkModule.default;
             var theme = localStorage.getItem('theme');
             var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme:dark)').matches;
             var appearance = (theme === 'dark' || (theme !== 'light' && prefersDark)) ? 'dark' : 'light';
             inkEditor = ink(document.getElementById('editable_text'), {
                 doc: value || '',
-                options: {
-                    appearance: appearance
-                },
+                options: { appearance: appearance },
                 hooks: {
                     afterUpdate: function() {
                         if (!editor_updating) save();
@@ -221,70 +304,45 @@
                 }
             });
             window.inkEditor = inkEditor;
-        });
+        } catch(e) {
+            console.error('ink-mde failed to load:', e);
+        }
+
 
         //-----------------------------------------------------------------------------------------------
-        // Auto-save when text is changed (via ink-mde afterUpdate hook):
-        //
+        // Debounced save (300ms) — ink-mde fires afterUpdate on every keystroke:
         function save() {
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(doSave, 300);
+        }
+
+        async function doSave() {
             if (editor_updating) return;
             var new_value = inkEditor ? inkEditor.getDoc() : '';
-            // 10-digit UNIX-time (The number of seconds since January 1, 1970 at 00:00:00 GMT): 
             var timestamp = Math.round(new Date().getTime() / 1000);
-            // Converting date (from the 10-digit UNIX-timestamp): 
             var date = new Date(timestamp * 1000);
-            var current_stored_id;
-            // Local storage size (min ~2.5 MB - max 5 MB per domain...) 
-            // Because characters in Javascript use up 2 Bytes instead of 1 Byte (Strings in JavaScript are UTF-16), 
-            // 2500000 characters actually takes up 5 MB of space... 
-            // 5 MB = ~2500000 characters (without array...) 
-            // 2.5 MB = ~1250000 characters (without array...) 
-            // Actually, overflow html-textarea > ~100 000 characters - slows text editing, because the size of html-page is very large... 
-            // Max 2 500 000 Bytes (2.5 MB): 
-            // - 250 (~239) Bytes - the current size of the array with 1st object (with empty values of the keys)... 
-            // (It depends on the number of keys, names and values of object in array...) 
-            // 2500000 Bytes - 250 Bytes = 2499750 Bytes... 
             var max_storage_size = 2500000 - 250;
-            // Size of the stored data (in Bytes): 
-            var storage_size = $.jStorage.storageSize();
-            var sum_of_lengths;
-            var new_sum_of_lengths = 0;
-            var error_message = 'You have reached the maximum space of your drafts.\r\nYou can delete unused drafts to free up space of drafts via “Delete” button.';
-            var error_message2 = 'Your text is very large. Or you have reached the maximum space of your drafts.\r\nYou can delete unused drafts to free up space of drafts via “Delete” button.';
-            drafts = $.jStorage.get("drafts");
-            current_stored_value = '';
-            last_modified_id = $.jStorage.get('last_modified_id');
-            //-------------------------------------------------- 
-            // Filter to prevent overflow of local storage: 
-            // If the main key "drafts" does not exist in the storage... 
-            if (!drafts) {
-                new_sum_of_lengths = 0;
-            } else {
-                //------------------------------------------------------------------------------------------ 
-                // The summation of the lengths (chars) of all the texts in all saved drafts via loop... 
-                // Also, searching and getting current stored value of "value" via loop... 
-                sum_of_lengths = 0;
-                for (var d = 0; d < drafts.length; d++) {
-                    // + 100 (~77) Bytes (Reserve for the new objects (drafts) that takes up to ~77 Bytes (per each draft)... 
-                    // (It depends on the number of keys, names and values of object in array...) 
-                    sum_of_lengths += drafts[d].value.length + 100;
-                    if (drafts[d].id == draft_id) {
-                        current_stored_value = drafts[d].value;
-                    }
+            var error_message = 'You have reached the maximum space of your drafts.\r\nYou can delete unused drafts to free up space of drafts via "Delete" button.';
+            var error_message2 = 'Your text is very large. Or you have reached the maximum space of your drafts.\r\nYou can delete unused drafts to free up space of drafts via "Delete" button.';
+
+            // Check total character size across all drafts:
+            var current_stored_value = '';
+            var sum_of_lengths = 0;
+            try {
+                var allDrafts = await NoteDB.getAll();
+                for (var d = 0; d < allDrafts.length; d++) {
+                    sum_of_lengths += allDrafts[d].value.length + 100;
+                    if (allDrafts[d].id == draft_id) { current_stored_value = allDrafts[d].value; }
                 }
-                // The new sum of the lengths of all the texts in all save drafts (with the new value of the text): 
-                new_sum_of_lengths = (sum_of_lengths - current_stored_value.length) + new_value.length;
-                //------------------------------------------------------------------------------------------ 
-            }
+            } catch(e) { /* storage unavailable — size check skipped */ }
+            var new_sum_of_lengths = (sum_of_lengths - current_stored_value.length) + new_value.length;
+
             if ((new_value.length >= max_storage_size) || (new_sum_of_lengths >= max_storage_size)) {
-                // If a user uses the "Paste" (with more > than 1 character...) 
                 if (((new_value.length - max_storage_size) > 1) || ((new_sum_of_lengths - max_storage_size) > 1) || ((new_value.length - current_stored_value.length) > 1)) {
-                    // Replaces the "pasted" text to the last saved value (or null value)...
                     editor_updating = true; if (inkEditor) inkEditor.update(current_stored_value); editor_updating = false;
                     new_value = current_stored_value;
                     alert(error_message2);
                 } else {
-                    // Removes -1 character to the right of the text...
                     editor_updating = true; if (inkEditor) inkEditor.update(new_value.slice(0, -1)); editor_updating = false;
                     new_value = new_value.slice(0, -1);
                     $('#limit_notice div').text(error_message);
@@ -294,89 +352,23 @@
             } else {
                 $('#limit_notice').hide();
             }
-            //------------------------------------------------------------------------------- 
-            // Check if the main key "drafts" does not exist in the storage for new user: 
-            if (!drafts) {
-                // Saving the 1st main key "drafts" and value [] with {the 1st object} inside the array [] 
-                $.jStorage.set("drafts", [{"id":draft_id,"timestamp":timestamp,"value":new_value}]);
-                // Also, copying text to <div id="printable_text">: 
-                // 10 000 chars > 2 sheets of paper... 
-                if (new_value.length < 10000) {
-                    $('#printable_text').text(new_value);
-                } else {
-                    $('#printable_text').html(save_the_world_message);
-                }
-                $('#buttons #delete_draft').show();
-                $('#create_temp_url').show();
-                $('#count').show();
-                $('#status_text_by_default').hide();
-                $('#status_text').show();
-            } else {
-                //-------------------------------------------------------------- 
-                // Searching current "draft_id" in the storage via loop... 
-                for (var e = 0; e < drafts.length; e++) {
-                    if (drafts[e].id == draft_id) {
-                        current_stored_id = drafts[e].id;
-                        break;
-                    }
-                }
-                //-------------------------------------------------------------- 
-                // If the current "draft_id" is not found in the storage: 
-                // In case if a user has pressed the "+ New" button, or if a user has deleted last draft via the "Delete" button... 
-                if (!current_stored_id) {
-                    // The 2nd filter to prevent overflow of local storage in a new tab/window: 
-                    // + 100 (~77) Bytes (Reserve for "last_modified_id" that is deleted before adding the new draft...) 
-                    // that takes up to ~77 Bytes (per each draft)... 
-                    // (It depends on the number of keys, names and values of object in array...) 
-                    if ((storage_size + 100) <= max_storage_size) {
-                        // Adding the new draft object inside the array [{...},{...},{new}] 
-                        drafts.push({"id":draft_id,"timestamp":timestamp,"value":new_value});
-                        $('#buttons #delete_draft').show();
-                        $('#create_temp_url').show();
-                        $('#count').show();
-                        $('#status_text_by_default').hide();
-                        $('#status_text').show();
-                    } else {
-                        editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
-                        $('#limit_notice div').text(error_message);
-                        $('#limit_notice').show();
-                        $('#buttons #delete_draft').hide();
-                        $('#create_temp_url').hide();
-                        $('#count').hide();
-                        $('#status_text_by_default').hide();
-                        $('#status_text').hide();
-                    }
-                } else {
-                    // Searching ID and replacement values of "value" and "timestamp"... 
-                    for (var f = 0; f < drafts.length; f++) {
-                        if (drafts[f].id == draft_id) {
-                            drafts[f].value = new_value;
-                            drafts[f].timestamp = timestamp;
-                            break;
-                        }
-                        $('#buttons #delete_draft').show();
-                        $('#create_temp_url').show();
-                        $('#count').show();
-                        $('#status_text_by_default').hide();
-                        $('#status_text').show();
-                    }
-                }
-                $.jStorage.set("drafts", drafts);
-                // Also, copying text to <div id="printable_text">: 
-                // 10 000 chars > 2 sheets of paper... 
-                if (new_value.length < 10000) {
-                    $('#printable_text').text(new_value);
-                } else {
-                    $('#printable_text').html(save_the_world_message);
-                }
+
+            try {
+                await NoteDB.put({ id: draft_id, timestamp: timestamp, value: new_value });
+                localStorage.setItem('last_modified_id', draft_id);
+            } catch(e) {
+                console.error('Save failed:', e);
+                return;
             }
-            //------------------------------------------------------------------------------- 
-            $.jStorage.set('last_modified_id', draft_id);
-            // Start count_value() function to count characters and words... 
+
+            if (new_value.length < 10000) { $('#printable_text').text(new_value); } else { $('#printable_text').html(save_the_world_message); }
+            $('#buttons #delete_draft').show();
+            $('#create_temp_url').show();
+            $('#count').show();
+            $('#status_text_by_default').hide();
+            $('#status_text').show();
             count_value(new_value);
-            // on Month d, yyyy, at hh:mm:ss 
             $('#status_text').html('Saved in your browser storage as draft on ' + month_name[date.getMonth()] + '&nbsp;' + date.getDate() + ', ' + date.getFullYear() + ', at ' + ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2) + ':' + ('0' + date.getSeconds()).slice(-2));
-            // Start function to change <title> of the page/tab/window for the edited draft 
             change_page_title(new_value);
         }
 
@@ -391,27 +383,23 @@
 
 
         //-----------------------------------------------------------------------------------------------
-        // Delete the current draft immediately if it is empty (called before switching away):
-        function delete_current_if_empty() {
+        // Delete the current draft if empty (called before switching/creating):
+        async function delete_current_if_empty() {
             var doc = inkEditor ? inkEditor.getDoc() : '';
             if (doc.trim() !== '') return;
-            var d = $.jStorage.get("drafts");
-            if (!d) return;
-            for (var i = 0; i < d.length; i++) {
-                if (d[i].id === draft_id) { d.splice(i, 1); break; }
-            }
-            if (d.length > 0) { $.jStorage.set("drafts", d); } else { $.jStorage.flush(); }
+            try { await NoteDB.delete(draft_id); } catch(e) {}
         }
 
 
         //-----------------------------------------------------------------------------------------------
         // Sidebar tab click (event delegation - bound once):
-        $('#sidebar-tabs-list').on('click', '.sidebar-tab', function(e) {
+        $('#sidebar-tabs-list').on('click', '.sidebar-tab', async function(e) {
             if ($(e.target).hasClass('tab-delete')) return;
             var clicked_id = $(this).data('id');
             if (clicked_id === draft_id) return;
-            delete_current_if_empty();
-            var d = $.jStorage.get("drafts");
+            await delete_current_if_empty();
+            var d;
+            try { d = await NoteDB.getAll(); } catch(e) { return; }
             if (!d) return;
             for (var h = 0; h < d.length; h++) {
                 if (d[h].id === clicked_id) {
@@ -427,7 +415,7 @@
                     $('#status_text').show();
                     $('#create_temp_url').show();
                     change_page_title(v);
-                    $.jStorage.set('last_modified_id', draft_id);
+                    localStorage.setItem('last_modified_id', draft_id);
                     break;
                 }
             }
@@ -444,14 +432,11 @@
             $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").click(function() {
                 $("#confirm_layer, #confirm_lightbox").hide();
             });
-            $("#confirm_lightbox #confirm_buttons #ok").click(function() {
-                var d = $.jStorage.get("drafts");
-                for (var j = 0; j < d.length; j++) {
-                    if (d[j].id === del_id) { d.splice(j, 1); break; }
-                }
-                if (d.length > 0) { $.jStorage.set("drafts", d); } else { $.jStorage.flush(); }
+            $("#confirm_lightbox #confirm_buttons #ok").click(async function() {
+                try { await NoteDB.delete(del_id); } catch(e) {}
                 if (del_id === draft_id) {
-                    var remaining = $.jStorage.get("drafts");
+                    var remaining;
+                    try { remaining = await NoteDB.getAll(); } catch(e) { remaining = []; }
                     if (remaining && remaining.length > 0) {
                         remaining.sort(function(a,b){return b.timestamp-a.timestamp;});
                         draft_id = remaining[0].id;
@@ -465,12 +450,12 @@
                         $('#status_text_by_default').hide();
                         $('#status_text').show();
                         $('#create_temp_url').show();
-                        $.jStorage.set('last_modified_id', draft_id);
+                        localStorage.setItem('last_modified_id', draft_id);
                     } else {
                         draft_id = generate_id();
                         editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
                         $('#printable_text').text('');
-                        $.jStorage.deleteKey('last_modified_id');
+                        localStorage.removeItem('last_modified_id');
                         $('#count').hide();
                         $('#count #count_chars, #count #count_words').text('');
                         $('#status_text').hide();
@@ -487,35 +472,32 @@
 
         //-----------------------------------------------------------------------------------------------
         // Populates the sidebar tab list:
-        //
-        // Start function (without delay) when the 1-st request to the page...
         list_of_drafts();
-        // Auto-updating list of drafts (every 5 sec...)
         setInterval(list_of_drafts, 5000);
-        //
-        function list_of_drafts() {
-            var drafts = $.jStorage.get("drafts");
-            var date;
+
+        async function list_of_drafts() {
+            var allDrafts;
+            try { allDrafts = await NoteDB.getAll(); } catch(e) { return; }
             function compare(a, b) { return b.timestamp - a.timestamp; }
             $('#sidebar-tabs-list').empty();
-            if (!drafts || drafts.length === 0) {
+            if (!allDrafts || allDrafts.length === 0) {
                 $('#delete_all_drafts').hide();
                 return;
             }
-            drafts = drafts.sort(compare);
-            for (var g = 0; g < drafts.length; g++) {
-                date = new Date(drafts[g].timestamp * 1000);
+            allDrafts = allDrafts.sort(compare);
+            for (var g = 0; g < allDrafts.length; g++) {
+                var date = new Date(allDrafts[g].timestamp * 1000);
                 var formatted_date;
                 if ((date.getMonth() + 1) == (new Date().getMonth() + 1)) {
                     formatted_date = month_name[date.getMonth()] + ' ' + date.getDate() + ', ' + ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2);
                 } else {
                     formatted_date = ('0' + (date.getMonth() + 1)).slice(-2) + '.' + ('0' + date.getDate()).slice(-2) + '.' + ('0' + date.getFullYear()).slice(-2);
                 }
-                var safe_value = $('<span></span>').text(drafts[g].value).html();
+                var safe_value = $('<span></span>').text(allDrafts[g].value).html();
                 var short_value = safe_value.trim().replace(/\s\s+/g, ' ').slice(0, 35).trim() || 'Empty note';
-                var is_active = (drafts[g].id === draft_id) ? ' active' : '';
+                var is_active = (allDrafts[g].id === draft_id) ? ' active' : '';
                 $('#sidebar-tabs-list').append(
-                    '<div class="sidebar-tab' + is_active + '" data-id="' + drafts[g].id + '">' +
+                    '<div class="sidebar-tab' + is_active + '" data-id="' + allDrafts[g].id + '">' +
                     '<div class="tab-date">' + formatted_date + '</div>' +
                     '<div class="tab-preview">' + short_value + '</div>' +
                     '<span class="tab-delete" title="Delete">&#215;</span>' +
@@ -526,37 +508,25 @@
         }
 
 
-        //----------------------------------------------------------------------------------------------- 
-        // Searching and auto-deleting draft(s) if a draft(s) "with empty value" or "without text" or contains "whitespace characters only"... 
-        // and also, if deleted ID not equal "last_modified_id" and if passed more > than 24 hours... 
-        // 
-        // Start function (without delay) when the 1-st request to the page or when the tab/window/browser has been restarted... 
+        //-----------------------------------------------------------------------------------------------
+        // Auto-delete empty drafts older than 24 hours (skips last-modified):
         delete_empty_drafts_24();
-        // Start function every ~1 hour (1 h = 3600 s = 3600000 ms...) 
         setInterval(delete_empty_drafts_24, 3600000);
-        // 
-        function delete_empty_drafts_24() {
-            var drafts = $.jStorage.get("drafts");
-            var last_modified_id = $.jStorage.get('last_modified_id');
+
+        async function delete_empty_drafts_24() {
+            var allDrafts;
+            try { allDrafts = await NoteDB.getAll(); } catch(e) { return; }
+            var lastId = localStorage.getItem('last_modified_id');
             var today = new Date();
-            var date;
-            var diff;
-            if (drafts && drafts.length > 1) {
-                //-------------------------------------------------------------- 
-                for (var i = 0; i < drafts.length; i++) {
-                    // Converting date (from the 10-digit UNIX-timestamp) 
-                    date = new Date(drafts[i].timestamp * 1000);
-                    // The difference (in hours): 
-                    diff = Math.floor((((today - date) / 1000) / 60) / 60);
-                    // Regular expression - match(/^\s*$/) - checks if text == '' or == 'whitespace characters only' 
-                    // (space(s), tab(s), line feed, form feed, carriage return, no-break space(s), next line, and the variable-width spaces...) 
-                    if ((drafts[i].value === '' || drafts[i].value === ' ' || drafts[i].value.match(/^\s*$/)) && (drafts[i].id != last_modified_id) && diff >= 24) {
-                        // Deleting draft object from the array [{...},{removed object},{...}] 
-                        drafts.splice(i, 1);
-                        $.jStorage.set("drafts", drafts);
-                    }
+            if (!allDrafts || allDrafts.length <= 1) return;
+            for (var i = 0; i < allDrafts.length; i++) {
+                var date = new Date(allDrafts[i].timestamp * 1000);
+                var diff = Math.floor((((today - date) / 1000) / 60) / 60);
+                if ((allDrafts[i].value === '' || allDrafts[i].value === ' ' || allDrafts[i].value.match(/^\s*$/)) && (allDrafts[i].id != lastId) && diff >= 24) {
+                    try { await NoteDB.delete(allDrafts[i].id); } catch(e) {}
+                    allDrafts.splice(i, 1);
+                    i--;
                 }
-                //-------------------------------------------------------------- 
             }
         }
 
@@ -570,12 +540,12 @@
                 $('#sidebar').toggleClass('collapsed');
             }
         });
-        $('#sidebar-new-btn').click(function() {
-            delete_current_if_empty();
+        $('#sidebar-new-btn').click(async function() {
+            await delete_current_if_empty();
             draft_id = generate_id();
             editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
             $('#printable_text').text('');
-            $.jStorage.deleteKey('last_modified_id');
+            localStorage.removeItem('last_modified_id');
             $('#count').hide();
             $('#count #count_chars, #count #count_words').text('');
             $('#limit_notice').hide();
@@ -593,8 +563,9 @@
             $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").click(function() {
                 $("#confirm_layer, #confirm_lightbox").hide();
             });
-            $("#confirm_lightbox #confirm_buttons #ok").click(function() {
-                $.jStorage.flush();
+            $("#confirm_lightbox #confirm_buttons #ok").click(async function() {
+                try { await NoteDB.clear(); } catch(e) {}
+                localStorage.removeItem('last_modified_id');
                 draft_id = generate_id();
                 editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
                 $('#printable_text').text('');
@@ -742,6 +713,7 @@
                 });
             });
         });
+        })(); // end async initApp
     });
     </script>
 <!--[if lt IE 9]>
@@ -803,10 +775,10 @@
 <div id="footer">
 <div id="footer_menu"><a href="online-notepad.html">About</a> <a href="faq/">FAQ</a> <a href="terms/">Terms</a> <a href="feedback/">Feedback</a></div>
 <div id="footer_desc">
-<p>JustNotepad.com is a free <strong>online notepad</strong> in your web&nbsp;browser. With JustNotepad.com you can create notes (ideas, to-do list, links, or any other plain text) that you would like to write just in a web&nbsp;browser <strong>online</strong>. This simple <nobr><strong><a href="https://dulcet-kitsune-ea085c.netlify.app/" title="online notepad">online notepad</a></strong></nobr> has AutoSave feature and allows you to restore your text “as&nbsp;a&nbsp;draft” even if you have closed your web&nbsp;browser/window or browser&nbsp;tab (if it is technologically possible and is supported by a&nbsp;web&nbsp;browser). Therefore, you can easily return to your text notes anytime.<br />
+<p>JustNotepad.com is a free <strong>online notepad</strong> in your web&nbsp;browser. With JustNotepad.com you can create notes (ideas, to-do list, links, or any other plain text) that you would like to write just in a web&nbsp;browser <strong>online</strong>. This simple <nobr><strong><a href="https://dulcet-kitsune-ea085c.netlify.app/" title="online notepad">online notepad</a></strong></nobr> has AutoSave feature and allows you to restore your text "as&nbsp;a&nbsp;draft" even if you have closed your web&nbsp;browser/window or browser&nbsp;tab (if it is technologically possible and is supported by a&nbsp;web&nbsp;browser). Therefore, you can easily return to your text notes anytime.<br />
 Your text (draft) is stored in your web&nbsp;browser only (on your device only) and is not available to anyone. But if you want to send your text note to your friend or to another device, you can create a Temporary&nbsp;link to sync your text.</p>
-<p>In addition, this online notepad works like a “multi-page” notepad and allows you to manage drafts (notes). All created notes (drafts) are named “by&nbsp;date” and “time”, to easily identify your note.</p>
-<p>JustNotepad.com is not a “text editor” and has no text formatting. If you need a real multifunctional special text editor with text formatting tools etc., you can <a href="https://duckduckgo.com/?q=download+text+editor" target="_blank" rel="nofollow">find</a> a lot of different applications (any <a href="https://en.wikipedia.org/wiki/List_of_word_processors" target="_blank" rel="nofollow">Word&nbsp;processor</a> or <a href="https://en.wikipedia.org/wiki/List_of_text_editors" target="_blank" rel="nofollow">Text editor</a>) for your special needs. Or you can download and install, for example the free and open-source <a href="https://www.libreoffice.org/" target="_blank" rel="nofollow">LibreOffice&nbsp;Writer</a> (for Windows, Mac&nbsp;OS&nbsp;X and Linux).</p>
+<p>In addition, this online notepad works like a "multi-page" notepad and allows you to manage drafts (notes). All created notes (drafts) are named "by&nbsp;date" and "time", to easily identify your note.</p>
+<p>JustNotepad.com is not a "text editor" and has no text formatting. If you need a real multifunctional special text editor with text formatting tools etc., you can <a href="https://duckduckgo.com/?q=download+text+editor" target="_blank" rel="nofollow">find</a> a lot of different applications (any <a href="https://en.wikipedia.org/wiki/List_of_word_processors" target="_blank" rel="nofollow">Word&nbsp;processor</a> or <a href="https://en.wikipedia.org/wiki/List_of_text_editors" target="_blank" rel="nofollow">Text editor</a>) for your special needs. Or you can download and install, for example the free and open-source <a href="https://www.libreoffice.org/" target="_blank" rel="nofollow">LibreOffice&nbsp;Writer</a> (for Windows, Mac&nbsp;OS&nbsp;X and Linux).</p>
 </div>
 <div id="footer_bottom_line">
 <div id="footer_social_b">
