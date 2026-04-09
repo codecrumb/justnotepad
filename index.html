@@ -545,8 +545,15 @@
             if ($(window).width() <= 700) {
                 $('#sidebar').toggleClass('open');
             } else {
-                $('#sidebar').toggleClass('collapsed');
+                if ($('#sidebar').hasClass('collapsed')) {
+                    $('#sidebar').removeClass('collapsed just-collapsed');
+                } else {
+                    $('#sidebar').addClass('collapsed just-collapsed');
+                }
             }
+        });
+        $('#sidebar').on('mouseleave', function() {
+            $(this).removeClass('just-collapsed');
         });
         $('#sidebar-new-btn').click(async function() {
             await delete_current_if_empty();
