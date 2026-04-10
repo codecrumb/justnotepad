@@ -286,6 +286,15 @@
 
 
         //-----------------------------------------------------------------------------------------------
+        // Click anywhere in the editor area to focus the editor:
+        $('#editable_text_box').on('click', function(e) {
+            if (inkEditor && !$(e.target).closest('.cm-editor')[0]) {
+                inkEditor.focus();
+            }
+        });
+
+
+        //-----------------------------------------------------------------------------------------------
         // Keyboard shortcuts:
         document.addEventListener('keydown', function(e) {
             var meta = e.ctrlKey || e.metaKey;
@@ -293,10 +302,10 @@
             var k = e.key.toLowerCase();
             if (e.shiftKey && k === 'n') { e.preventDefault(); $('#sidebar-new-btn').trigger('click'); return; }
             if (e.shiftKey || !inkEditor) return;
-            if      (k === 'b') { e.preventDefault(); inkEditor.wrap({ before: '**', after: '**' }); }
-            else if (k === 'i') { e.preventDefault(); inkEditor.wrap({ before: '*',  after: '*'  }); }
-            else if (k === 'e') { e.preventDefault(); inkEditor.wrap({ before: '`',  after: '`'  }); }
-            else if (k === 'k') { e.preventDefault(); inkEditor.wrap({ before: '[',  after: ']()'}); }
+            if      (k === 'b') { e.preventDefault(); inkEditor.format('bold'); }
+            else if (k === 'i') { e.preventDefault(); inkEditor.format('italic'); }
+            else if (k === 'e') { e.preventDefault(); inkEditor.format('code'); }
+            else if (k === 'k') { e.preventDefault(); inkEditor.wrap({ before: '[', after: ']()' }); }
         });
 
 
