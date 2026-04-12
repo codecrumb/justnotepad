@@ -12,7 +12,6 @@
 - **Version Control**
   - Similar to Git / Photoshop history
   - Track note changes over time
-  - Suggested prerequisite: migrate storage to IndexedDB
 
 ## Storage Evolution
 - **OPFS (Origin Private File System)**

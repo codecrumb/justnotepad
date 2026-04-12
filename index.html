@@ -885,12 +885,15 @@
         // Selection formatting toolbar:
         (function() {
             var editorBox = document.getElementById('editable_text_box');
+            var savedSel = null;
             function updateSelToolbar() {
                 var sel = window.getSelection();
                 if (!sel || sel.isCollapsed || !sel.toString().trim() || !editorBox || !editorBox.contains(sel.anchorNode)) {
                     $('#sel-toolbar').hide();
                     return;
                 }
+                // Snapshot the ink-mde selection while editor still has focus
+                savedSel = inkEditor ? inkEditor.selections().pop() : null;
                 var rect = sel.getRangeAt(0).getBoundingClientRect();
                 var $t = $('#sel-toolbar').show();
                 var tw = $t.outerWidth();
@@ -903,13 +906,19 @@
             document.addEventListener('mouseup', updateSelToolbar);
             document.addEventListener('keyup', updateSelToolbar);
             $(document).on('mousedown', function(e) {
-                if (!$(e.target).closest('#sel-toolbar').length) $('#sel-toolbar').hide();
+                if (!$(e.target).closest('#sel-toolbar').length) { $('#sel-toolbar').hide(); savedSel = null; }
             });
             $('#sel-toolbar').on('mousedown', '.sel-btn', function(e) {
                 e.preventDefault();
                 var fmt = $(this).data('fmt');
-                if (inkEditor) inkEditor.format(fmt);
+                if (!inkEditor) return;
+                if (fmt === 'strikethrough') {
+                    inkEditor.wrap({ before: '~~', after: '~~', selection: savedSel });
+                } else {
+                    inkEditor.format(fmt, { selection: savedSel });
+                }
                 $('#sel-toolbar').hide();
+                savedSel = null;
             });
         })();
     });
