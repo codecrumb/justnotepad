@@ -653,10 +653,10 @@
         //-----------------------------------------------------------------------------------------------
         // Settings modal:
         $('#settings-gear').click(function() {
-            $('#settings-layer, #settings-modal').show();
+            $('#settings-page').show();
         });
-        $('#settings-layer, #settings-close').click(function() {
-            $('#settings-layer, #settings-modal').hide();
+        $('#settings-close').click(function() {
+            $('#settings-page').hide();
             $('#import-status').text('');
         });
         $('#export-notes').click(async function() {
@@ -848,14 +848,15 @@
 </div></div>
 <div id="confirm_layer" style="display:none;"></div>
 <div id="confirm_lightbox" style="display:none;"></div>
-<div id="settings-layer" style="display:none;"></div>
-<div id="settings-modal" style="display:none;">
-<div id="settings-header">Settings<span id="settings-close">&times;</span></div>
-<div id="settings-body">
-<div class="settings-section-title">Backup</div>
-<div class="settings-row"><button id="export-notes">Export all notes</button><span class="settings-hint">Downloads a .json backup of all your notes</span></div>
-<div class="settings-row"><button id="import-notes-btn">Import notes</button><input type="file" id="import-notes-input" accept=".json" style="display:none;"><span class="settings-hint">Merge notes from a backup file</span></div>
+<div id="settings-page" style="display:none;">
+<div id="settings-page-header"><button id="settings-close">&#8592; Back</button><span id="settings-title">Settings</span></div>
+<div id="settings-page-body">
+<div class="settings-section">
+<div class="settings-section-label">Backup</div>
+<div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Export all notes</div><div class="settings-card-desc">Download a .json backup of all your notes</div></div><button id="export-notes">Export</button></div>
+<div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Import notes</div><div class="settings-card-desc">Merge notes from a backup file — won't delete existing notes</div></div><button id="import-notes-btn">Import</button><input type="file" id="import-notes-input" accept=".json" style="display:none;"></div>
 <div id="import-status"></div>
+</div>
 </div>
 </div>
 
