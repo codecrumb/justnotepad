@@ -650,6 +650,48 @@
             $("#count span").toggle();
         });
 
+        //-----------------------------------------------------------------------------------------------
+        // Settings modal:
+        $('#settings-gear').click(function() {
+            $('#settings-layer, #settings-modal').show();
+        });
+        $('#settings-layer, #settings-close').click(function() {
+            $('#settings-layer, #settings-modal').hide();
+            $('#import-status').text('');
+        });
+        $('#export-notes').click(async function() {
+            var allDrafts;
+            try { allDrafts = await NoteDB.getAll(); } catch(e) { return; }
+            var backup = { version: 1, exported: Date.now(), notes: allDrafts };
+            var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'justnotepad-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+        $('#import-notes-btn').click(function() {
+            $('#import-notes-input').val('').trigger('click');
+        });
+        $('#import-notes-input').on('change', async function() {
+            var file = this.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    var data = JSON.parse(e.target.result);
+                    if (!data.notes || !Array.isArray(data.notes)) throw new Error('Invalid backup file.');
+                    await NoteDB.putAll(data.notes);
+                    list_of_drafts();
+                    $('#import-status').text('Imported ' + data.notes.length + ' note(s).');
+                } catch(err) {
+                    $('#import-status').text('Error: ' + (err.message || 'Could not import file.'));
+                }
+            };
+            reader.readAsText(file);
+        });
+
 
         //-----------------------------------------------------------------------------------------------
         // Telegraph sharing:
@@ -775,7 +817,7 @@
 <div id="sidebar-new-btn"><span class="new-icon">+</span><span class="new-label">&nbsp;New</span></div>
 <div id="sidebar-tabs-list"></div>
 <div id="sidebar-bottom"><div id="delete_all_drafts" style="display:none;">Delete All</div></div>
-<div id="sidebar-theme"><div id="style_mode"><span id="auto_mode"></span><span id="light_mode" style="display:none;"></span><span id="dark_mode" style="display:none;"></span></div></div>
+<div id="sidebar-theme"><div id="style_mode"><span id="auto_mode"></span><span id="light_mode" style="display:none;"></span><span id="dark_mode" style="display:none;"></span></div><span id="settings-gear" title="Settings">&#9881;</span></div>
 </div>
 <div id="main-content">
 <div id="editable_text_box">
@@ -806,6 +848,16 @@
 </div></div>
 <div id="confirm_layer" style="display:none;"></div>
 <div id="confirm_lightbox" style="display:none;"></div>
+<div id="settings-layer" style="display:none;"></div>
+<div id="settings-modal" style="display:none;">
+<div id="settings-header">Settings<span id="settings-close">&times;</span></div>
+<div id="settings-body">
+<div class="settings-section-title">Backup</div>
+<div class="settings-row"><button id="export-notes">Export all notes</button><span class="settings-hint">Downloads a .json backup of all your notes</span></div>
+<div class="settings-row"><button id="import-notes-btn">Import notes</button><input type="file" id="import-notes-input" accept=".json" style="display:none;"><span class="settings-hint">Merge notes from a backup file</span></div>
+<div id="import-status"></div>
+</div>
+</div>
 
 <script src="js/theme.js"></script>
 </body>

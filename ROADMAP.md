@@ -1,11 +1,3 @@
-## Export / Backup
-- **Full Backup System**
-  - Export all notes (single file or `.zip`)
-  - Import notes for:
-    - Switching browsers/devices
-    - Simple restore flow (upload → restore all)
-  - Foundation for future sync support
-
 ## Future Ideas
 - **Sync System**
   - Use Telegraph as a backend via a shared “mega note”
