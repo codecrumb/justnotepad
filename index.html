@@ -879,6 +879,38 @@
             });
         });
         })(); // end async initApp
+
+        //-----------------------------------------------------------------------------------------------
+        // Selection formatting toolbar:
+        (function() {
+            var editorBox = document.getElementById('editable_text_box');
+            function updateSelToolbar() {
+                var sel = window.getSelection();
+                if (!sel || sel.isCollapsed || !sel.toString().trim() || !editorBox || !editorBox.contains(sel.anchorNode)) {
+                    $('#sel-toolbar').hide();
+                    return;
+                }
+                var rect = sel.getRangeAt(0).getBoundingClientRect();
+                var $t = $('#sel-toolbar').show();
+                var tw = $t.outerWidth();
+                var x = rect.left + rect.width / 2 - tw / 2;
+                var y = rect.top - $t.outerHeight() - 8;
+                x = Math.max(8, Math.min(x, window.innerWidth - tw - 8));
+                if (y < 8) y = rect.bottom + 8;
+                $t.css({ left: x, top: y });
+            }
+            document.addEventListener('mouseup', updateSelToolbar);
+            document.addEventListener('keyup', updateSelToolbar);
+            $(document).on('mousedown', function(e) {
+                if (!$(e.target).closest('#sel-toolbar').length) $('#sel-toolbar').hide();
+            });
+            $('#sel-toolbar').on('mousedown', '.sel-btn', function(e) {
+                e.preventDefault();
+                var fmt = $(this).data('fmt');
+                if (inkEditor) inkEditor.format(fmt);
+                $('#sel-toolbar').hide();
+            });
+        })();
     });
     </script>
 </head>
@@ -917,6 +949,7 @@
 <div id="status_text" style="display:none;"></div>
 </div>
 </div></div>
+<div id="sel-toolbar" style="display:none;"><button class="sel-btn" data-fmt="bold"><b>B</b></button><button class="sel-btn" data-fmt="italic"><i>I</i></button><button class="sel-btn" data-fmt="strikethrough"><s>S</s></button><button class="sel-btn" data-fmt="code"><code>{ }</code></button></div>
 <div id="note-ctx-menu" style="display:none;"><div class="ctx-item" id="ctx-pin-note">Pin</div><div class="ctx-separator"></div><div class="ctx-item ctx-danger" id="ctx-delete-note">Delete</div></div>
 <div id="confirm_layer" style="display:none;"></div>
 <div id="confirm_lightbox" style="display:none;"></div>
