@@ -301,6 +301,7 @@
             if (!meta) return;
             var k = e.key.toLowerCase();
             if (e.shiftKey && k === 'n') { e.preventDefault(); $('#sidebar-new-btn').trigger('click'); return; }
+            if (e.shiftKey && k === 's') { e.preventDefault(); if (inkEditor) inkEditor.format('strikethrough'); return; }
             if (e.shiftKey || !inkEditor) return;
             if      (k === 'b') { e.preventDefault(); inkEditor.format('bold'); }
             else if (k === 'i') { e.preventDefault(); inkEditor.format('italic'); }
