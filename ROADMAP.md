@@ -1,3 +1,6 @@
+## UX Ideas
+- **Pin a note** — keep one note always at the top of the sidebar list
+
 ## Future Ideas
 - **Sync System**
   - Use Telegraph as a backend via a shared “mega note”

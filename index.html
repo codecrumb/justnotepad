@@ -524,7 +524,8 @@
                     formatted_date = ('0' + (date.getMonth() + 1)).slice(-2) + '.' + ('0' + date.getDate()).slice(-2) + '.' + ('0' + date.getFullYear()).slice(-2);
                 }
                 var safe_value = $('<span></span>').text(allDrafts[g].value).html();
-                var short_value = safe_value.trim().replace(/\s\s+/g, ' ').slice(0, 35).trim() || 'Empty note';
+                var first_line = allDrafts[g].value.split('\n').find(function(l) { return l.trim(); }) || '';
+                var short_value = $('<span></span>').text(first_line.replace(/^#+\s*/, '').trim()).html().slice(0, 50) || 'Untitled';
                 var is_active = (allDrafts[g].id === draft_id) ? ' active' : '';
                 $('#sidebar-tabs-list').append(
                     '<div class="sidebar-tab' + is_active + '" data-id="' + allDrafts[g].id + '">' +
@@ -690,6 +691,36 @@
             reader.readAsText(file);
         });
 
+        //-----------------------------------------------------------------------------------------------
+        // Auto-hide bottom bar on scroll:
+        (function() {
+            var lastST = 0;
+            $('#main-content').on('scroll', function() {
+                if (localStorage.getItem('bar_autohide') === '0') return;
+                var st = $(this).scrollTop();
+                if (st > lastST + 4) {
+                    $('#bottom-bar').addClass('bar-hidden');
+                } else if (st < lastST - 4) {
+                    $('#bottom-bar').removeClass('bar-hidden');
+                }
+                lastST = Math.max(0, st);
+            });
+            $('#toggle-bar-autohide').on('click', function() {
+                var off = localStorage.getItem('bar_autohide') === '0';
+                if (off) {
+                    localStorage.removeItem('bar_autohide');
+                    $(this).text('On');
+                    $('#bottom-bar').removeClass('bar-hidden');
+                } else {
+                    localStorage.setItem('bar_autohide', '0');
+                    $(this).text('Off');
+                    $('#bottom-bar').removeClass('bar-hidden');
+                }
+            });
+            if (localStorage.getItem('bar_autohide') === '0') {
+                $('#toggle-bar-autohide').text('Off');
+            }
+        })();
 
         //-----------------------------------------------------------------------------------------------
         // Telegraph sharing:
@@ -848,6 +879,10 @@
 <div id="settings-page" style="display:none;">
 <div id="settings-page-header"><button id="settings-close">&#8592; Back</button><span id="settings-title">Settings</span></div>
 <div id="settings-page-body">
+<div class="settings-section">
+<div class="settings-section-label">Editor</div>
+<div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Auto-hide toolbar</div><div class="settings-card-desc">Bottom bar hides when scrolling down, reappears on scroll up</div></div><button id="toggle-bar-autohide">On</button></div>
+</div>
 <div class="settings-section">
 <div class="settings-section-label">Backup</div>
 <div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Export all notes</div><div class="settings-card-desc">Download a .json backup of all your notes</div></div><button id="export-notes">Export</button></div>
