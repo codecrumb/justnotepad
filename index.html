@@ -512,7 +512,6 @@
             function compare(a, b) { return b.timestamp - a.timestamp; }
             $('#sidebar-tabs-list').empty();
             if (!allDrafts || allDrafts.length === 0) {
-                $('#delete_all_drafts').hide();
                 return;
             }
             allDrafts = allDrafts.sort(compare);
@@ -535,7 +534,6 @@
                     '</div>'
                 );
             }
-            $('#delete_all_drafts').show();
         }
 
 
@@ -606,7 +604,7 @@
             if ($(window).width() <= 700) { $('#sidebar').removeClass('open'); }
             if (inkEditor) inkEditor.focus();
         });
-        $('#delete_all_drafts').click(function() {
+        $('#settings-delete-all').click(function() {
             $("#confirm_lightbox").html('<div id="confirm_message">Are you sure you want to delete all your drafts?</div><div id="confirm_buttons"><div id="ok">Delete</div><div id="cancel">Cancel</div></div>');
             $("#confirm_layer").show();
             $("#confirm_lightbox").show();
@@ -816,7 +814,6 @@
 <div id="sidebar-header"><span id="sidebar-toggle" title="Toggle sidebar">&#9776;</span></div>
 <div id="sidebar-new-btn"><span class="new-icon">+</span><span class="new-label">&nbsp;New</span></div>
 <div id="sidebar-tabs-list"></div>
-<div id="sidebar-bottom"><div id="delete_all_drafts" style="display:none;">Delete All</div></div>
 <div id="sidebar-theme"><div id="style_mode"><span id="auto_mode"></span><span id="light_mode" style="display:none;"></span><span id="dark_mode" style="display:none;"></span></div><span id="settings-gear" title="Settings">&#9881;</span></div>
 </div>
 <div id="main-content">
@@ -856,6 +853,11 @@
 <div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Export all notes</div><div class="settings-card-desc">Download a .json backup of all your notes</div></div><button id="export-notes">Export</button></div>
 <div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Import notes</div><div class="settings-card-desc">Merge notes from a backup file — won't delete existing notes</div></div><button id="import-notes-btn">Import</button><input type="file" id="import-notes-input" accept=".json" style="display:none;"></div>
 <div id="import-status"></div>
+</div>
+<div class="settings-section">
+<div class="settings-section-label">Danger Zone</div>
+<div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Delete all notes</div><div class="settings-card-desc">Permanently removes every note — cannot be undone</div></div><button id="settings-delete-all" class="settings-btn-danger">Delete All</button></div>
+</div>
 </div>
 </div>
 </div>
