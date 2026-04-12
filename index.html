@@ -583,6 +583,11 @@
         $('#sidebar').on('mouseleave', function() {
             $(this).removeClass('just-collapsed');
         });
+        $(document).on('click', function(e) {
+            if ($(window).width() <= 700 && $('#sidebar').hasClass('open') && !$(e.target).closest('#sidebar').length) {
+                $('#sidebar').removeClass('open');
+            }
+        });
         $('#sidebar-new-btn').click(async function() {
             await delete_current_if_empty();
             draft_id = generate_id();
