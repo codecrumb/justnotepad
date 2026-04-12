@@ -506,6 +506,7 @@
         var ctx_target_id = null;
         $('#sidebar-tabs-list').on('contextmenu', '.sidebar-tab', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             ctx_target_id = $(this).data('id');
             var pinned = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
             $('#ctx-pin-note').text(pinned.indexOf(ctx_target_id) !== -1 ? 'Unpin' : 'Pin');
@@ -516,7 +517,7 @@
             if (y + mh > window.innerHeight) y = window.innerHeight - mh - 4;
             menu.css({ left: x, top: y }).show();
         });
-        $(document).on('click contextmenu', function(e) {
+        $(document).on('click', function(e) {
             if (!$(e.target).closest('#note-ctx-menu').length) $('#note-ctx-menu').hide();
         });
         $('#ctx-pin-note').on('click', function() {
@@ -699,7 +700,7 @@
         $('#export-notes').click(async function() {
             var allDrafts;
             try { allDrafts = await NoteDB.getAll(); } catch(e) { return; }
-            var backup = { version: 1, exported: Date.now(), notes: allDrafts };
+            var backup = { version: 1, exported: Date.now(), notes: allDrafts, pinned: JSON.parse(localStorage.getItem('pinned_notes') || '[]') };
             var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
             var url = URL.createObjectURL(blob);
             var a = document.createElement('a');
@@ -720,6 +721,11 @@
                     var data = JSON.parse(e.target.result);
                     if (!data.notes || !Array.isArray(data.notes)) throw new Error('Invalid backup file.');
                     await NoteDB.putAll(data.notes);
+                    if (Array.isArray(data.pinned) && data.pinned.length) {
+                        var existing = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
+                        var merged = existing.concat(data.pinned.filter(function(id) { return existing.indexOf(id) === -1; }));
+                        localStorage.setItem('pinned_notes', JSON.stringify(merged));
+                    }
                     list_of_drafts();
                     $('#import-status').text('Imported ' + data.notes.length + ' note(s).');
                 } catch(err) {
