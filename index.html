@@ -502,6 +502,39 @@
 
 
         //-----------------------------------------------------------------------------------------------
+        // Sidebar right-click context menu:
+        var ctx_target_id = null;
+        $('#sidebar-tabs-list').on('contextmenu', '.sidebar-tab', function(e) {
+            e.preventDefault();
+            ctx_target_id = $(this).data('id');
+            var pinned = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
+            $('#ctx-pin-note').text(pinned.indexOf(ctx_target_id) !== -1 ? 'Unpin' : 'Pin');
+            var menu = $('#note-ctx-menu');
+            var x = e.clientX, y = e.clientY;
+            var mw = 160, mh = 80;
+            if (x + mw > window.innerWidth)  x = window.innerWidth  - mw - 4;
+            if (y + mh > window.innerHeight) y = window.innerHeight - mh - 4;
+            menu.css({ left: x, top: y }).show();
+        });
+        $(document).on('click contextmenu', function(e) {
+            if (!$(e.target).closest('#note-ctx-menu').length) $('#note-ctx-menu').hide();
+        });
+        $('#ctx-pin-note').on('click', function() {
+            if (!ctx_target_id) return;
+            var pinned = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
+            var idx = pinned.indexOf(ctx_target_id);
+            if (idx !== -1) pinned.splice(idx, 1); else pinned.push(ctx_target_id);
+            localStorage.setItem('pinned_notes', JSON.stringify(pinned));
+            $('#note-ctx-menu').hide();
+            list_of_drafts();
+        });
+        $('#ctx-delete-note').on('click', function() {
+            if (!ctx_target_id) return;
+            $('#note-ctx-menu').hide();
+            $('#sidebar-tabs-list .sidebar-tab[data-id="' + ctx_target_id + '"] .tab-delete').trigger('click');
+        });
+
+        //-----------------------------------------------------------------------------------------------
         // Populates the sidebar tab list:
         list_of_drafts();
         setInterval(list_of_drafts, 5000);
@@ -509,12 +542,16 @@
         async function list_of_drafts() {
             var allDrafts;
             try { allDrafts = await NoteDB.getAll(); } catch(e) { return; }
-            function compare(a, b) { return b.timestamp - a.timestamp; }
             $('#sidebar-tabs-list').empty();
             if (!allDrafts || allDrafts.length === 0) {
                 return;
             }
-            allDrafts = allDrafts.sort(compare);
+            var pinned = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
+            allDrafts.sort(function(a, b) {
+                var ap = pinned.indexOf(a.id) !== -1, bp = pinned.indexOf(b.id) !== -1;
+                if (ap !== bp) return ap ? -1 : 1;
+                return b.timestamp - a.timestamp;
+            });
             for (var g = 0; g < allDrafts.length; g++) {
                 var date = new Date(allDrafts[g].timestamp * 1000);
                 var formatted_date;
@@ -523,12 +560,13 @@
                 } else {
                     formatted_date = ('0' + (date.getMonth() + 1)).slice(-2) + '.' + ('0' + date.getDate()).slice(-2) + '.' + ('0' + date.getFullYear()).slice(-2);
                 }
-                var safe_value = $('<span></span>').text(allDrafts[g].value).html();
                 var first_line = allDrafts[g].value.split('\n').find(function(l) { return l.trim(); }) || '';
                 var short_value = $('<span></span>').text(first_line.replace(/^#+\s*/, '').trim()).html().slice(0, 50) || 'Untitled';
                 var is_active = (allDrafts[g].id === draft_id) ? ' active' : '';
+                var is_pinned = pinned.indexOf(allDrafts[g].id) !== -1;
                 $('#sidebar-tabs-list').append(
-                    '<div class="sidebar-tab' + is_active + '" data-id="' + allDrafts[g].id + '">' +
+                    '<div class="sidebar-tab' + is_active + (is_pinned ? ' pinned' : '') + '" data-id="' + allDrafts[g].id + '">' +
+                    (is_pinned ? '<span class="tab-pin-indicator" title="Pinned">&#x1F4CC;</span>' : '') +
                     '<div class="tab-date">' + formatted_date + '</div>' +
                     '<div class="tab-preview">' + short_value + '</div>' +
                     '<span class="tab-delete" title="Delete">&#215;</span>' +
@@ -874,6 +912,7 @@
 <div id="status_text" style="display:none;"></div>
 </div>
 </div></div>
+<div id="note-ctx-menu" style="display:none;"><div class="ctx-item" id="ctx-pin-note">Pin</div><div class="ctx-separator"></div><div class="ctx-item ctx-danger" id="ctx-delete-note">Delete</div></div>
 <div id="confirm_layer" style="display:none;"></div>
 <div id="confirm_lightbox" style="display:none;"></div>
 <div id="settings-page" style="display:none;">
