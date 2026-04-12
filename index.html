@@ -567,7 +567,6 @@
                 var is_pinned = pinned.indexOf(allDrafts[g].id) !== -1;
                 $('#sidebar-tabs-list').append(
                     '<div class="sidebar-tab' + is_active + (is_pinned ? ' pinned' : '') + '" data-id="' + allDrafts[g].id + '">' +
-                    (is_pinned ? '<span class="tab-pin-indicator" title="Pinned">&#x1F4CC;</span>' : '') +
                     '<div class="tab-date">' + formatted_date + '</div>' +
                     '<div class="tab-preview">' + short_value + '</div>' +
                     '<span class="tab-delete" title="Delete">&#215;</span>' +
