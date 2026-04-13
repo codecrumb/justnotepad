@@ -972,8 +972,17 @@ window.GistSync = (function() {
             $('#gist-connect-btn').prop('disabled', false).text('Connect');
         });
         $('#gist-disconnect-btn').click(function() {
-            GistSync.disconnect();
-            updateGistSettingsUI();
+            $("#confirm_lightbox").html('<div id="confirm_message">Disconnect GitHub Gist sync? Your notes stay on this device but will no longer sync.</div><div id="confirm_buttons"><div id="ok">Disconnect</div><div id="cancel">Cancel</div></div>');
+            $("#confirm_layer").show();
+            $("#confirm_lightbox").show();
+            $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").click(function() {
+                $("#confirm_layer, #confirm_lightbox").hide();
+            });
+            $("#confirm_lightbox #confirm_buttons #ok").click(function() {
+                $("#confirm_layer, #confirm_lightbox").hide();
+                GistSync.disconnect();
+                updateGistSettingsUI();
+            });
         });
         $('#gist-sync-now-btn').click(async function() {
             $('#gist-sync-now-btn').prop('disabled', true);
