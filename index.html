@@ -44,6 +44,7 @@
 #gist-pat-input{width:100%;box-sizing:border-box;padding:7px 10px;border-radius:8px;border:1px solid #ddd;font-size:13px;margin-bottom:8px;background:#fff;color:#000;}
 .gist-sync-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
 #gist-connect-status{font-size:12px;margin-top:6px;color:#858585;}
+#sync-toast{position:fixed;bottom:54px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.72);color:#fff;padding:7px 16px;border-radius:20px;font-size:13px;z-index:19999;display:none;white-space:nowrap;pointer-events:none;}
 </style>
 <script type="text/javascript" src="js/jquery/3.7.1/jquery.min.js"></script>
 
@@ -236,7 +237,7 @@ window.GistSync = (function() {
             var localDrafts = await NoteDB.getAll();
             var localMap = {};
             for (var i = 0; i < localDrafts.length; i++) { localMap[localDrafts[i].id] = localDrafts[i]; }
-            var changed = false;
+            var changedCount = 0;
             for (var j = 0; j < meta.notes.length; j++) {
                 var mn = meta.notes[j];
                 var fname = 'note-' + mn.id + '.md';
@@ -246,7 +247,8 @@ window.GistSync = (function() {
                 var local = localMap[mn.id];
                 if (!local || remoteTs > local.timestamp) {
                     await NoteDB.put({ id: mn.id, timestamp: remoteTs, value: remoteContent });
-                    changed = true;
+                    changedCount++;
+                    document.dispatchEvent(new CustomEvent('gistsync:note-updated', { detail: { id: mn.id, value: remoteContent, timestamp: remoteTs } }));
                 }
             }
             if (meta.pinned && meta.pinned.length) {
@@ -254,11 +256,22 @@ window.GistSync = (function() {
                 var mp = ep.concat(meta.pinned.filter(function(id) { return ep.indexOf(id) === -1; }));
                 localStorage.setItem('pinned_notes', JSON.stringify(mp));
             }
-            if (changed) document.dispatchEvent(new Event('gistsync:updated'));
+            if (changedCount > 0) {
+                document.dispatchEvent(new Event('gistsync:updated'));
+                showToast(changedCount === 1 ? '1 note synced' : changedCount + ' notes synced');
+            }
             localStorage.setItem('gist_last_synced_at', new Date().toISOString());
             if (!_pushing) setStatus('ok');
         } catch(e) { console.error('GistSync pull:', e); if (!_pushing) setStatus('error'); }
         _pulling = false;
+    }
+
+    var _toastTimer = null;
+    function showToast(msg) {
+        var $t = $('#sync-toast');
+        $t.text(msg).stop(true).fadeIn(200);
+        clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(function() { $t.fadeOut(400); }, 3000);
     }
 
     function schedulePush() {
@@ -1111,6 +1124,33 @@ window.GistSync = (function() {
             });
         });
         document.addEventListener('gistsync:updated', function() { list_of_drafts(); });
+
+        // Refresh editor if the currently-open note was updated by a pull:
+        document.addEventListener('gistsync:note-updated', function(e) {
+            if (e.detail.id !== draft_id) return;
+            editor_updating = true; if (inkEditor) inkEditor.update(e.detail.value); editor_updating = false;
+            var dt = new Date(e.detail.timestamp * 1000);
+            $('#status_text').html('Saved in your browser storage as draft on ' + month_name[dt.getMonth()] + '&nbsp;' + dt.getDate() + ', ' + dt.getFullYear() + ', at ' + ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2) + ':' + ('0' + dt.getSeconds()).slice(-2));
+            change_page_title(e.detail.value);
+            count_value(e.detail.value);
+        });
+
+        // Pull on note switch:
+        $('#sidebar-tabs-list').on('click.sync', '.sidebar-tab', function(e) {
+            if ($(e.target).hasClass('tab-delete')) return;
+            if (GistSync.isConnected()) GistSync.pull();
+        });
+
+        // Pull when mobile keyboard closes (viewport height increases):
+        if (window.visualViewport) {
+            var _lastVH = window.visualViewport.height;
+            window.visualViewport.addEventListener('resize', function() {
+                var newVH = window.visualViewport.height;
+                if (newVH > _lastVH + 100 && GistSync.isConnected()) GistSync.pull();
+                _lastVH = newVH;
+            });
+        }
+
         await GistSync.init();
         })(); // end async initApp
 
@@ -1194,6 +1234,7 @@ window.GistSync = (function() {
 </div></div>
 <div id="sel-toolbar" style="display:none;"><button class="sel-btn" data-fmt="bold"><b>B</b></button><button class="sel-btn" data-fmt="italic"><i>I</i></button><button class="sel-btn" data-fmt="strikethrough"><s>S</s></button><button class="sel-btn" data-fmt="code"><code>{ }</code></button></div>
 <div id="note-ctx-menu" style="display:none;"><div class="ctx-item" id="ctx-pin-note">Pin</div><div class="ctx-separator"></div><div class="ctx-item ctx-danger" id="ctx-delete-note">Delete</div></div>
+<div id="sync-toast"></div>
 <div id="confirm_layer" style="display:none;"></div>
 <div id="confirm_lightbox" style="display:none;"></div>
 <div id="settings-page" style="display:none;">
