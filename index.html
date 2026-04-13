@@ -35,6 +35,16 @@
 <link rel="stylesheet" href="styles/print.css" type="text/css" media="print" />
 <link rel="prefetch" href="styles/night_mode.css" as="style" />
 <link rel="prefetch" href="images/logo_w.png" as="image" />
+<style>
+#sync-indicator{cursor:pointer;font-size:15px;padding:2px 5px;border-radius:4px;display:none;line-height:1;user-select:none;}
+#sync-indicator.sync-ok{color:#34c759;}
+#sync-indicator.sync-error{color:#ff3b30;}
+#sync-indicator.sync-spinning{display:inline-block;animation:sync-spin 1s linear infinite;}
+@keyframes sync-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+#gist-pat-input{width:100%;box-sizing:border-box;padding:7px 10px;border-radius:8px;border:1px solid #ddd;font-size:13px;margin-bottom:8px;background:#fff;color:#000;}
+.gist-sync-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+#gist-connect-status{font-size:12px;margin-top:6px;color:#858585;}
+</style>
 <script type="text/javascript" src="js/jquery/3.7.1/jquery.min.js"></script>
 
 <script type="text/javascript">
@@ -125,7 +135,161 @@
 })();
 </script>
 
+<script>
+window.GistSync = (function() {
+    var API = 'https://api.github.com';
+    var GIST_DESC = 'justnotepad-sync';
+    var _pat = null, _gistId = null, _pullInterval = null, _pushTimer = null;
+    var _pushing = false, _pulling = false, _visHandler = null;
 
+    function hdrs(pat) {
+        return { 'Authorization': 'token ' + (pat || _pat), 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
+    }
+
+    async function findOrCreateGist(pat) {
+        var page = 1;
+        while (true) {
+            var res = await fetch(API + '/gists?per_page=100&page=' + page, { headers: hdrs(pat) });
+            if (!res.ok) { var err = await res.json().catch(function(){return{};}); throw new Error(err.message || 'GitHub API error ' + res.status); }
+            var gists = await res.json();
+            for (var i = 0; i < gists.length; i++) {
+                if (gists[i].description === GIST_DESC) return gists[i].id;
+            }
+            if (gists.length < 100) break;
+            page++;
+        }
+        var body = JSON.stringify({ description: GIST_DESC, public: false, files: { '_meta.json': { content: JSON.stringify({ version: 1, notes: [], pinned: [] }) } } });
+        var res2 = await fetch(API + '/gists', { method: 'POST', headers: hdrs(pat), body: body });
+        if (!res2.ok) { var err2 = await res2.json().catch(function(){return{};}); throw new Error(err2.message || 'Failed to create gist: ' + res2.status); }
+        return (await res2.json()).id;
+    }
+
+    function setStatus(state) {
+        var $el = $('#sync-indicator');
+        $el.removeClass('sync-spinning sync-ok sync-error');
+        if (state === 'spinning') { $el.show().addClass('sync-spinning').attr('title', 'Syncing\u2026'); }
+        else if (state === 'ok')  { $el.show().addClass('sync-ok').attr('title', 'Synced \u2014 click to sync now'); }
+        else if (state === 'error'){ $el.show().addClass('sync-error').attr('title', 'Sync error \u2014 click to retry'); }
+        else if (state === 'hidden'){ $el.hide(); }
+    }
+
+    async function push() {
+        if (!_pat || !_gistId || _pushing) return;
+        _pushing = true;
+        setStatus('spinning');
+        try {
+            var allDrafts = await NoteDB.getAll();
+            var files = {}, metaNotes = [];
+            for (var i = 0; i < allDrafts.length; i++) {
+                var d = allDrafts[i];
+                files['note-' + d.id + '.md'] = { content: d.value || ' ' };
+                metaNotes.push({ id: d.id, timestamp: d.timestamp });
+            }
+            var pinned = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
+            files['_meta.json'] = { content: JSON.stringify({ version: 1, notes: metaNotes, pinned: pinned }) };
+            var res = await fetch(API + '/gists/' + _gistId, { method: 'PATCH', headers: hdrs(), body: JSON.stringify({ files: files }) });
+            if (!res.ok) throw new Error('Push failed: ' + res.status);
+            localStorage.setItem('gist_last_synced_at', new Date().toISOString());
+            setStatus('ok');
+        } catch(e) { console.error('GistSync push:', e); setStatus('error'); }
+        _pushing = false;
+    }
+
+    async function pull() {
+        if (!_pat || !_gistId || _pulling) return;
+        _pulling = true;
+        if (!_pushing) setStatus('spinning');
+        try {
+            var res = await fetch(API + '/gists/' + _gistId, { headers: hdrs() });
+            if (!res.ok) throw new Error('Pull failed: ' + res.status);
+            var gist = await res.json();
+            var files = gist.files;
+            var meta = { version: 1, notes: [], pinned: [] };
+            if (files['_meta.json'] && files['_meta.json'].content) {
+                try { meta = JSON.parse(files['_meta.json'].content); } catch(e) {}
+            }
+            var localDrafts = await NoteDB.getAll();
+            var localMap = {};
+            for (var i = 0; i < localDrafts.length; i++) { localMap[localDrafts[i].id] = localDrafts[i]; }
+            var changed = false;
+            for (var j = 0; j < meta.notes.length; j++) {
+                var mn = meta.notes[j];
+                var fname = 'note-' + mn.id + '.md';
+                if (!files[fname]) continue;
+                var remoteContent = files[fname].content || '';
+                var remoteTs = mn.timestamp || 0;
+                var local = localMap[mn.id];
+                if (!local || remoteTs > local.timestamp) {
+                    await NoteDB.put({ id: mn.id, timestamp: remoteTs, value: remoteContent });
+                    changed = true;
+                }
+            }
+            if (meta.pinned && meta.pinned.length) {
+                var ep = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
+                var mp = ep.concat(meta.pinned.filter(function(id) { return ep.indexOf(id) === -1; }));
+                localStorage.setItem('pinned_notes', JSON.stringify(mp));
+            }
+            if (changed) document.dispatchEvent(new Event('gistsync:updated'));
+            localStorage.setItem('gist_last_synced_at', new Date().toISOString());
+            if (!_pushing) setStatus('ok');
+        } catch(e) { console.error('GistSync pull:', e); if (!_pushing) setStatus('error'); }
+        _pulling = false;
+    }
+
+    function schedulePush() {
+        clearTimeout(_pushTimer);
+        _pushTimer = setTimeout(push, 15000);
+    }
+
+    function startPolling() {
+        _visHandler = function() { if (document.visibilityState === 'visible') pull(); };
+        document.addEventListener('visibilitychange', _visHandler);
+        _pullInterval = setInterval(pull, 60000);
+    }
+
+    function stopPolling() {
+        if (_visHandler) { document.removeEventListener('visibilitychange', _visHandler); _visHandler = null; }
+        if (_pullInterval) { clearInterval(_pullInterval); _pullInterval = null; }
+    }
+
+    async function connect(pat) {
+        var gistId = await findOrCreateGist(pat);
+        _pat = pat; _gistId = gistId;
+        localStorage.setItem('gist_pat', pat);
+        localStorage.setItem('gist_id', gistId);
+        setStatus('ok');
+        await push();
+        await pull();
+        startPolling();
+    }
+
+    function disconnect() {
+        _pat = null; _gistId = null;
+        clearTimeout(_pushTimer);
+        stopPolling();
+        localStorage.removeItem('gist_pat');
+        localStorage.removeItem('gist_id');
+        localStorage.removeItem('gist_last_synced_at');
+        setStatus('hidden');
+    }
+
+    async function init() {
+        var pat = localStorage.getItem('gist_pat');
+        var gistId = localStorage.getItem('gist_id');
+        if (!pat || !gistId) return;
+        _pat = pat; _gistId = gistId;
+        setStatus('ok');
+        startPolling();
+        await pull();
+    }
+
+    return {
+        init: init, connect: connect, disconnect: disconnect,
+        push: push, pull: pull, schedulePush: schedulePush, setStatus: setStatus,
+        isConnected: function() { return !!_pat; }
+    };
+})();
+</script>
 
 <script type="text/javascript">
     /*
@@ -356,6 +520,7 @@
             try {
                 await NoteDB.put({ id: draft_id, timestamp: timestamp, value: new_value });
                 localStorage.setItem('last_modified_id', draft_id);
+                if (GistSync.isConnected()) GistSync.schedulePush();
             } catch(e) {
                 console.error('Save failed:', e);
                 return;
@@ -735,6 +900,48 @@
         });
 
         //-----------------------------------------------------------------------------------------------
+        // GitHub Gist Sync settings handlers:
+        function updateGistSettingsUI() {
+            if (GistSync.isConnected()) {
+                $('#gist-not-connected').hide();
+                $('#gist-connected').show();
+                $('#gist-connect-status').text('');
+            } else {
+                $('#gist-not-connected').show();
+                $('#gist-connected').hide();
+            }
+        }
+        $('#settings-gear').on('click.gistsync', updateGistSettingsUI);
+        $('#gist-connect-btn').click(async function() {
+            var pat = $('#gist-pat-input').val().trim();
+            if (!pat) return;
+            $('#gist-connect-btn').prop('disabled', true).text('Connecting\u2026');
+            $('#gist-connect-status').text('');
+            try {
+                await GistSync.connect(pat);
+                $('#gist-pat-input').val('');
+                updateGistSettingsUI();
+            } catch(e) {
+                $('#gist-connect-status').text('Error: ' + (e.message || 'Could not connect.'));
+            }
+            $('#gist-connect-btn').prop('disabled', false).text('Connect');
+        });
+        $('#gist-disconnect-btn').click(function() {
+            GistSync.disconnect();
+            updateGistSettingsUI();
+        });
+        $('#gist-sync-now-btn').click(async function() {
+            $('#gist-sync-now-btn').prop('disabled', true);
+            await GistSync.push();
+            await GistSync.pull();
+            $('#gist-sync-now-btn').prop('disabled', false);
+        });
+        $('#sync-indicator').click(async function() {
+            await GistSync.push();
+            await GistSync.pull();
+        });
+
+        //-----------------------------------------------------------------------------------------------
         // Auto-hide bottom bar on scroll:
         (function() {
             var lastST = 0;
@@ -878,6 +1085,8 @@
                 });
             });
         });
+        document.addEventListener('gistsync:updated', function() { list_of_drafts(); });
+        await GistSync.init();
         })(); // end async initApp
 
         //-----------------------------------------------------------------------------------------------
@@ -929,7 +1138,7 @@
 <div id="sidebar-header"><span id="sidebar-toggle" title="Toggle sidebar">&#9776;</span></div>
 <div id="sidebar-new-btn"><span class="new-icon">+</span><span class="new-label">&nbsp;New</span></div>
 <div id="sidebar-tabs-list"></div>
-<div id="sidebar-theme"><div id="style_mode"><span id="auto_mode"></span><span id="light_mode" style="display:none;"></span><span id="dark_mode" style="display:none;"></span></div><span id="settings-gear" title="Settings">&#9881;</span></div>
+<div id="sidebar-theme"><div id="style_mode"><span id="auto_mode"></span><span id="light_mode" style="display:none;"></span><span id="dark_mode" style="display:none;"></span></div><span id="sync-indicator" title="Synced &mdash; click to sync now">&#8635;</span><span id="settings-gear" title="Settings">&#9881;</span></div>
 </div>
 <div id="main-content">
 <div id="editable_text_box">
@@ -974,6 +1183,15 @@
 <div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Export all notes</div><div class="settings-card-desc">Download a .json backup of all your notes</div></div><button id="export-notes">Export</button></div>
 <div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Import notes</div><div class="settings-card-desc">Merge notes from a backup file — won't delete existing notes</div></div><button id="import-notes-btn">Import</button><input type="file" id="import-notes-input" accept=".json" style="display:none;"></div>
 <div id="import-status"></div>
+</div>
+<div class="settings-section">
+<div class="settings-section-label">Sync</div>
+<div class="settings-card" id="gist-sync-card">
+<div class="settings-card-info"><div class="settings-card-name">GitHub Gist Sync</div><div class="settings-card-desc">Sync notes across devices using a private GitHub Gist. Paste the same PAT on each device &mdash; no extra setup needed. Requires a GitHub PAT with <code>gist</code> scope.</div></div>
+<div id="gist-not-connected"><input id="gist-pat-input" type="password" placeholder="Paste GitHub PAT (gist scope)&hellip;" autocomplete="off"><div class="gist-sync-actions"><button id="gist-connect-btn">Connect</button></div></div>
+<div id="gist-connected" style="display:none;"><div class="gist-sync-actions"><button id="gist-sync-now-btn">Sync now</button><button id="gist-disconnect-btn" class="settings-btn-danger">Disconnect</button></div></div>
+<div id="gist-connect-status"></div>
+</div>
 </div>
 <div class="settings-section">
 <div class="settings-section-label">Danger Zone</div>
