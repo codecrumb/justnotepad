@@ -279,6 +279,13 @@ window.GistSync = (function() {
         _pushTimer = setTimeout(push, 15000);
     }
 
+    function flushPush() {
+        if (!_pushTimer) return;
+        clearTimeout(_pushTimer);
+        _pushTimer = null;
+        push();
+    }
+
     function startPolling() {
         _visHandler = function() { if (document.visibilityState === 'visible') pull(); };
         document.addEventListener('visibilitychange', _visHandler);
@@ -323,7 +330,7 @@ window.GistSync = (function() {
 
     return {
         init: init, connect: connect, disconnect: disconnect,
-        push: push, pull: pull, schedulePush: schedulePush, setStatus: setStatus,
+        push: push, pull: pull, schedulePush: schedulePush, flushPush: flushPush, setStatus: setStatus,
         isConnected: function() { return !!_pat; }
     };
 })();
@@ -1135,18 +1142,18 @@ window.GistSync = (function() {
             count_value(e.detail.value);
         });
 
-        // Pull on note switch:
+        // Flush pending push + pull on note switch:
         $('#sidebar-tabs-list').on('click.sync', '.sidebar-tab', function(e) {
             if ($(e.target).hasClass('tab-delete')) return;
-            if (GistSync.isConnected()) GistSync.pull();
+            if (GistSync.isConnected()) { GistSync.flushPush(); GistSync.pull(); }
         });
 
-        // Pull when mobile keyboard closes (viewport height increases):
+        // Flush pending push + pull when mobile keyboard closes (viewport height increases):
         if (window.visualViewport) {
             var _lastVH = window.visualViewport.height;
             window.visualViewport.addEventListener('resize', function() {
                 var newVH = window.visualViewport.height;
-                if (newVH > _lastVH + 100 && GistSync.isConnected()) GistSync.pull();
+                if (newVH > _lastVH + 100 && GistSync.isConnected()) { GistSync.flushPush(); GistSync.pull(); }
                 _lastVH = newVH;
             });
         }
