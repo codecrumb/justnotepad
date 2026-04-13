@@ -178,15 +178,40 @@ window.GistSync = (function() {
         _pushing = true;
         setStatus('spinning');
         try {
+            // Fetch remote meta first so we don't wipe notes from other devices
+            var remoteMeta = { version: 1, notes: [], pinned: [] };
+            try {
+                var rr = await fetch(API + '/gists/' + _gistId, { headers: hdrs() });
+                if (rr.ok) {
+                    var rg = await rr.json();
+                    if (rg.files['_meta.json'] && rg.files['_meta.json'].content) {
+                        remoteMeta = JSON.parse(rg.files['_meta.json'].content);
+                    }
+                }
+            } catch(e) { /* proceed with empty remote meta */ }
+
             var allDrafts = await NoteDB.getAll();
-            var files = {}, metaNotes = [];
+            var files = {};
+
+            // Start with remote note entries, then update/add local ones
+            var mergedNotes = {};
+            for (var k = 0; k < remoteMeta.notes.length; k++) {
+                mergedNotes[remoteMeta.notes[k].id] = remoteMeta.notes[k];
+            }
             for (var i = 0; i < allDrafts.length; i++) {
                 var d = allDrafts[i];
                 files['note-' + d.id + '.md'] = { content: d.value || ' ' };
-                metaNotes.push({ id: d.id, timestamp: d.timestamp });
+                mergedNotes[d.id] = { id: d.id, timestamp: d.timestamp };
             }
-            var pinned = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
-            files['_meta.json'] = { content: JSON.stringify({ version: 1, notes: metaNotes, pinned: pinned }) };
+
+            // Merge pinned arrays
+            var localPinned = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
+            var remotePinned = remoteMeta.pinned || [];
+            var mergedPinned = localPinned.concat(remotePinned.filter(function(id) { return localPinned.indexOf(id) === -1; }));
+
+            var notesList = Object.keys(mergedNotes).map(function(id) { return mergedNotes[id]; });
+            files['_meta.json'] = { content: JSON.stringify({ version: 1, notes: notesList, pinned: mergedPinned }) };
+
             var res = await fetch(API + '/gists/' + _gistId, { method: 'PATCH', headers: hdrs(), body: JSON.stringify({ files: files }) });
             if (!res.ok) throw new Error('Push failed: ' + res.status);
             localStorage.setItem('gist_last_synced_at', new Date().toISOString());
