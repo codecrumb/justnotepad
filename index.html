@@ -268,6 +268,7 @@ window.GistSync = (function() {
 
     var _toastTimer = null;
     function showToast(msg) {
+        if (localStorage.getItem('gist_toast') === '0') return;
         var $t = $('#sync-toast');
         $t.text(msg).stop(true).fadeIn(200);
         clearTimeout(_toastTimer);
@@ -951,11 +952,19 @@ window.GistSync = (function() {
                 $('#gist-not-connected').hide();
                 $('#gist-connected').show();
                 $('#gist-connect-status').text('');
+                $('#gist-toast-card').show();
+                $('#toggle-gist-toast').text(localStorage.getItem('gist_toast') === '0' ? 'Off' : 'On');
             } else {
                 $('#gist-not-connected').show();
                 $('#gist-connected').hide();
+                $('#gist-toast-card').hide();
             }
         }
+        $('#toggle-gist-toast').on('click', function() {
+            var off = localStorage.getItem('gist_toast') === '0';
+            if (off) { localStorage.removeItem('gist_toast'); $(this).text('On'); }
+            else { localStorage.setItem('gist_toast', '0'); $(this).text('Off'); }
+        });
         $('#settings-gear').on('click.gistsync', updateGistSettingsUI);
         $('#gist-connect-btn').click(async function() {
             var pat = $('#gist-pat-input').val().trim();
@@ -1272,6 +1281,7 @@ window.GistSync = (function() {
 <div class="settings-card-info"><div class="settings-card-name">GitHub Gist Sync</div><div class="settings-card-desc">Sync notes across devices using a private GitHub Gist. Paste the same PAT on each device &mdash; no extra setup needed. Requires a GitHub PAT with <code>gist</code> scope.</div></div>
 <div id="gist-not-connected"><input id="gist-pat-input" type="password" placeholder="Paste GitHub PAT (gist scope)&hellip;" autocomplete="off"><div class="gist-sync-actions"><button id="gist-connect-btn">Connect</button></div></div>
 <div id="gist-connected" style="display:none;"><div class="gist-sync-actions"><button id="gist-sync-now-btn">Sync now</button><button id="gist-disconnect-btn" class="settings-btn-danger">Disconnect</button></div></div>
+<div class="settings-card" id="gist-toast-card" style="display:none;"><div class="settings-card-info"><div class="settings-card-name">Sync notifications</div><div class="settings-card-desc">Show a brief toast when notes are pulled from another device</div></div><button id="toggle-gist-toast">On</button></div>
 <div id="gist-connect-status"></div>
 </div>
 </div>
