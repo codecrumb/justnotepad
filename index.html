@@ -45,6 +45,13 @@
 .gist-sync-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
 #gist-connect-status{font-size:12px;margin-top:6px;color:#858585;}
 #sync-toast{position:fixed;bottom:54px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.72);color:#fff;padding:7px 16px;border-radius:20px;font-size:13px;z-index:19999;display:none;white-space:nowrap;pointer-events:none;}
+.sidebar-trash-heading{font-size:11px;color:#888;padding:10px 12px 4px;letter-spacing:0.04em;text-transform:uppercase;user-select:none;border-top:1px solid rgba(128,128,128,0.15);margin-top:4px;}
+.sidebar-trashed-tab{display:flex;align-items:center;padding:5px 8px 5px 12px;gap:2px;opacity:0.55;cursor:default;}
+.sidebar-trashed-tab .tab-preview{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit;}
+.tab-restore,.tab-delete-perm{cursor:pointer;padding:2px 6px;border-radius:4px;font-size:14px;flex-shrink:0;line-height:1.4;}
+.tab-restore:hover{background:rgba(52,199,89,0.18);color:#34c759;}
+.tab-delete-perm:hover{background:rgba(255,59,48,0.15);color:#ff3b30;}
+#trash-retention{padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:13px;background:#fff;color:#000;cursor:pointer;}
 </style>
 <script type="text/javascript" src="js/jquery/3.7.1/jquery.min.js"></script>
 
@@ -131,6 +138,58 @@
                     next();
                 });
             });
+        },
+
+        trash: function(id) {
+            return openDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var tx = db.transaction(STORE, 'readwrite');
+                    var store = tx.objectStore(STORE);
+                    var req = store.get(id);
+                    req.onsuccess = function() {
+                        var draft = req.result;
+                        if (!draft) { resolve(); return; }
+                        draft.trashed = true;
+                        draft.deletedAt = Math.round(Date.now() / 1000);
+                        var req2 = store.put(draft);
+                        req2.onsuccess = function() { resolve(); };
+                        req2.onerror   = function(e) { reject(e.target.error); };
+                    };
+                    req.onerror = function(e) { reject(e.target.error); };
+                });
+            });
+        },
+
+        untrash: function(id) {
+            return openDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var tx = db.transaction(STORE, 'readwrite');
+                    var store = tx.objectStore(STORE);
+                    var req = store.get(id);
+                    req.onsuccess = function() {
+                        var draft = req.result;
+                        if (!draft) { resolve(); return; }
+                        delete draft.trashed;
+                        delete draft.deletedAt;
+                        var req2 = store.put(draft);
+                        req2.onsuccess = function() { resolve(); };
+                        req2.onerror   = function(e) { reject(e.target.error); };
+                    };
+                    req.onerror = function(e) { reject(e.target.error); };
+                });
+            });
+        },
+
+        getActive: function() {
+            return this.getAll().then(function(drafts) {
+                return drafts.filter(function(d) { return !d.trashed; });
+            });
+        },
+
+        getTrashed: function() {
+            return this.getAll().then(function(drafts) {
+                return drafts.filter(function(d) { return !!d.trashed; });
+            });
         }
     };
 })();
@@ -194,13 +253,26 @@ window.GistSync = (function() {
             var allDrafts = await NoteDB.getAll();
             var files = {};
 
-            // Start with remote note entries, then update/add local ones
+            // Build tombstone map: local trashed notes + remote tombstones
+            var tombstoneMap = {};
+            for (var t = 0; t < allDrafts.length; t++) {
+                if (allDrafts[t].trashed) tombstoneMap[allDrafts[t].id] = allDrafts[t].deletedAt || Math.round(Date.now() / 1000);
+            }
+            var remoteTombstones = remoteMeta.deleted || [];
+            for (var rt = 0; rt < remoteTombstones.length; rt++) {
+                if (!tombstoneMap[remoteTombstones[rt].id]) tombstoneMap[remoteTombstones[rt].id] = remoteTombstones[rt].at;
+            }
+            var mergedTombstones = Object.keys(tombstoneMap).map(function(id) { return { id: id, at: tombstoneMap[id] }; });
+
+            // Start with remote note entries, then update/add local active ones (skip tombstoned IDs)
             var mergedNotes = {};
             for (var k = 0; k < remoteMeta.notes.length; k++) {
-                mergedNotes[remoteMeta.notes[k].id] = remoteMeta.notes[k];
+                var rn = remoteMeta.notes[k];
+                if (!tombstoneMap[rn.id]) mergedNotes[rn.id] = rn;
             }
             for (var i = 0; i < allDrafts.length; i++) {
                 var d = allDrafts[i];
+                if (d.trashed) continue; // trashed → tombstone, not active note
                 files['note-' + d.id + '.md'] = { content: d.value || ' ' };
                 mergedNotes[d.id] = { id: d.id, timestamp: d.timestamp };
             }
@@ -211,7 +283,7 @@ window.GistSync = (function() {
             var mergedPinned = localPinned.concat(remotePinned.filter(function(id) { return localPinned.indexOf(id) === -1; }));
 
             var notesList = Object.keys(mergedNotes).map(function(id) { return mergedNotes[id]; });
-            files['_meta.json'] = { content: JSON.stringify({ version: 1, notes: notesList, pinned: mergedPinned }) };
+            files['_meta.json'] = { content: JSON.stringify({ version: 1, notes: notesList, pinned: mergedPinned, deleted: mergedTombstones }) };
 
             var res = await fetch(API + '/gists/' + _gistId, { method: 'PATCH', headers: hdrs(), body: JSON.stringify({ files: files }) });
             if (!res.ok) throw new Error('Push failed: ' + res.status);
@@ -245,12 +317,25 @@ window.GistSync = (function() {
                 var remoteContent = files[fname].content || '';
                 var remoteTs = mn.timestamp || 0;
                 var local = localMap[mn.id];
+                if (local && local.trashed) continue; // locally trashed — don't overwrite with remote active
                 if (!local || remoteTs > local.timestamp) {
                     await NoteDB.put({ id: mn.id, timestamp: remoteTs, value: remoteContent });
                     changedCount++;
                     document.dispatchEvent(new CustomEvent('gistsync:note-updated', { detail: { id: mn.id, value: remoteContent, timestamp: remoteTs } }));
                 }
             }
+            // Apply remote tombstones: if tombstone is newer than local note → trash locally
+            var remoteTombstoneList = meta.deleted || [];
+            for (var tk = 0; tk < remoteTombstoneList.length; tk++) {
+                var tomb = remoteTombstoneList[tk];
+                var localNote = localMap[tomb.id];
+                if (localNote && !localNote.trashed && tomb.at > (localNote.timestamp || 0)) {
+                    await NoteDB.trash(tomb.id);
+                    changedCount++;
+                    document.dispatchEvent(new CustomEvent('gistsync:note-trashed', { detail: { id: tomb.id } }));
+                }
+            }
+
             if (meta.pinned && meta.pinned.length) {
                 var ep = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
                 var mp = ep.concat(meta.pinned.filter(function(id) { return ep.indexOf(id) === -1; }));
@@ -386,14 +471,31 @@ window.GistSync = (function() {
 
 
         //-----------------------------------------------------------------------------------------------
+        // Purge trashed notes older than the retention period:
+        async function purgeExpiredTrash() {
+            var retention = parseInt(localStorage.getItem('trash_retention') || '30', 10);
+            if (retention === 0) return; // forever
+            var cutoff = Math.round(Date.now() / 1000) - retention * 86400;
+            var all;
+            try { all = await NoteDB.getAll(); } catch(e) { return; }
+            for (var pi = 0; pi < all.length; pi++) {
+                if (all[pi].trashed && all[pi].deletedAt && all[pi].deletedAt < cutoff) {
+                    try { await NoteDB.delete(all[pi].id); } catch(e) {}
+                }
+            }
+        }
+
+        //-----------------------------------------------------------------------------------------------
         // Open DB and migrate, then load drafts. Editor always initializes even if this fails.
         var drafts = null;
         var last_modified_id = null;
         try {
             await NoteDB.open();
             await migrateFromJStorage();
+            await purgeExpiredTrash();
             var allDrafts = await NoteDB.getAll();
-            drafts = (allDrafts && allDrafts.length > 0) ? allDrafts : null;
+            var activeDrafts = allDrafts.filter(function(d) { return !d.trashed; });
+            drafts = (activeDrafts.length > 0) ? activeDrafts : null;
         } catch(e) {
             console.error('Storage init failed:', e);
         }
@@ -411,6 +513,13 @@ window.GistSync = (function() {
             draft_id = '60fe463d1c670551f5a5f470722b0efb';
         } else {
             draft_id = last_modified_id;
+        }
+
+        // If draft_id points to a trashed/nonexistent note, switch to most recent active
+        if (drafts && !drafts.some(function(d) { return d.id === draft_id; })) {
+            var _sortedActive = drafts.slice().sort(function(a, b) { return b.timestamp - a.timestamp; });
+            draft_id = _sortedActive[0].id;
+            localStorage.setItem('last_modified_id', draft_id);
         }
 
 
@@ -542,7 +651,10 @@ window.GistSync = (function() {
                 var allDrafts = await NoteDB.getAll();
                 for (var d = 0; d < allDrafts.length; d++) {
                     sum_of_lengths += allDrafts[d].value.length + 100;
-                    if (allDrafts[d].id == draft_id) { current_stored_value = allDrafts[d].value; }
+                    if (allDrafts[d].id == draft_id) {
+                        if (allDrafts[d].trashed) return; // don't write to a trashed note
+                        current_stored_value = allDrafts[d].value;
+                    }
                 }
             } catch(e) { /* storage unavailable — size check skipped */ }
             var new_sum_of_lengths = (sum_of_lengths - current_stored_value.length) + new_value.length;
@@ -662,50 +774,65 @@ window.GistSync = (function() {
             $('#sidebar-tabs-list .sidebar-tab').removeClass('active');
             $(this).addClass('active');
         });
-        // Delete individual note via × button (event delegation - bound once):
-        $('#sidebar-tabs-list').on('click', '.tab-delete', function(e) {
+        // Move note to Trash via × button (soft delete, event delegation - bound once):
+        $('#sidebar-tabs-list').on('click', '.tab-delete', async function(e) {
             e.stopPropagation();
             var del_id = $(this).closest('.sidebar-tab').data('id');
-            $("#confirm_lightbox").html('<div id="confirm_message">Delete this note?</div><div id="confirm_buttons"><div id="ok">Delete</div><div id="cancel">Cancel</div></div>');
+            try { await NoteDB.trash(del_id); } catch(e) {}
+            if (GistSync.isConnected()) GistSync.schedulePush();
+            if (del_id === draft_id) {
+                var remaining;
+                try { remaining = await NoteDB.getActive(); } catch(e) { remaining = []; }
+                if (remaining && remaining.length > 0) {
+                    remaining.sort(function(a,b){return b.timestamp-a.timestamp;});
+                    draft_id = remaining[0].id;
+                    var v2 = remaining[0].value;
+                    var dt2 = new Date(remaining[0].timestamp * 1000);
+                    editor_updating = true; if (inkEditor) inkEditor.update(v2); editor_updating = false;
+                    if (v2.length < 10000) { $('#printable_text').text(v2); } else { $('#printable_text').html(save_the_world_message); }
+                    count_value(v2);
+                    $('#count').show();
+                    $('#status_text').html('Saved in your browser storage as draft on ' + month_name[dt2.getMonth()] + '&nbsp;' + dt2.getDate() + ', ' + dt2.getFullYear() + ', at ' + ('0' + dt2.getHours()).slice(-2) + ':' + ('0' + dt2.getMinutes()).slice(-2) + ':' + ('0' + dt2.getSeconds()).slice(-2));
+                    $('#status_text_by_default').hide();
+                    $('#status_text').show();
+                    reset_telegraph_box();
+                    $('#create_temp_url').show(); $('#download_note').show();
+                    localStorage.setItem('last_modified_id', draft_id);
+                } else {
+                    draft_id = generate_id();
+                    editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
+                    $('#printable_text').text('');
+                    localStorage.removeItem('last_modified_id');
+                    reset_telegraph_box();
+                    $('#count').hide();
+                    $('#count #count_chars, #count #count_words').text('');
+                    $('#status_text').hide();
+                    $('#status_text_by_default').show();
+                    $('#create_temp_url').hide(); $('#download_note').hide();
+                    document.title = default_page_title;
+                }
+            }
+            list_of_drafts();
+        });
+        // Restore trashed note:
+        $('#sidebar-tabs-list').on('click', '.tab-restore', async function(e) {
+            e.stopPropagation();
+            var id = $(this).closest('.sidebar-trashed-tab').data('id');
+            try { await NoteDB.untrash(id); } catch(e) {}
+            list_of_drafts();
+        });
+        // Permanently delete trashed note:
+        $('#sidebar-tabs-list').on('click', '.tab-delete-perm', function(e) {
+            e.stopPropagation();
+            var perm_id = $(this).closest('.sidebar-trashed-tab').data('id');
+            $("#confirm_lightbox").html('<div id="confirm_message">Permanently delete this note? This cannot be undone.</div><div id="confirm_buttons"><div id="ok">Delete</div><div id="cancel">Cancel</div></div>');
             $("#confirm_layer").show();
             $("#confirm_lightbox").show();
             $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").click(function() {
                 $("#confirm_layer, #confirm_lightbox").hide();
             });
             $("#confirm_lightbox #confirm_buttons #ok").click(async function() {
-                try { await NoteDB.delete(del_id); } catch(e) {}
-                if (del_id === draft_id) {
-                    var remaining;
-                    try { remaining = await NoteDB.getAll(); } catch(e) { remaining = []; }
-                    if (remaining && remaining.length > 0) {
-                        remaining.sort(function(a,b){return b.timestamp-a.timestamp;});
-                        draft_id = remaining[0].id;
-                        var v2 = remaining[0].value;
-                        var dt2 = new Date(remaining[0].timestamp * 1000);
-                        editor_updating = true; if (inkEditor) inkEditor.update(v2); editor_updating = false;
-                        if (v2.length < 10000) { $('#printable_text').text(v2); } else { $('#printable_text').html(save_the_world_message); }
-                        count_value(v2);
-                        $('#count').show();
-                        $('#status_text').html('Saved in your browser storage as draft on ' + month_name[dt2.getMonth()] + '&nbsp;' + dt2.getDate() + ', ' + dt2.getFullYear() + ', at ' + ('0' + dt2.getHours()).slice(-2) + ':' + ('0' + dt2.getMinutes()).slice(-2) + ':' + ('0' + dt2.getSeconds()).slice(-2));
-                        $('#status_text_by_default').hide();
-                        $('#status_text').show();
-                        reset_telegraph_box();
-                        $('#create_temp_url').show(); $('#download_note').show();
-                        localStorage.setItem('last_modified_id', draft_id);
-                    } else {
-                        draft_id = generate_id();
-                        editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
-                        $('#printable_text').text('');
-                        localStorage.removeItem('last_modified_id');
-                        reset_telegraph_box();
-                        $('#count').hide();
-                        $('#count #count_chars, #count #count_words').text('');
-                        $('#status_text').hide();
-                        $('#status_text_by_default').show();
-                        $('#create_temp_url').hide(); $('#download_note').hide();
-                        document.title = default_page_title;
-                    }
-                }
+                try { await NoteDB.delete(perm_id); } catch(e) {}
                 $("#confirm_layer, #confirm_lightbox").hide();
                 list_of_drafts();
             });
@@ -755,34 +882,52 @@ window.GistSync = (function() {
             var allDrafts;
             try { allDrafts = await NoteDB.getAll(); } catch(e) { return; }
             $('#sidebar-tabs-list').empty();
-            if (!allDrafts || allDrafts.length === 0) {
-                return;
-            }
+            if (!allDrafts || allDrafts.length === 0) return;
+
+            var active = allDrafts.filter(function(d) { return !d.trashed; });
+            var trashed = allDrafts.filter(function(d) { return !!d.trashed; });
+
             var pinned = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
-            allDrafts.sort(function(a, b) {
+            active.sort(function(a, b) {
                 var ap = pinned.indexOf(a.id) !== -1, bp = pinned.indexOf(b.id) !== -1;
                 if (ap !== bp) return ap ? -1 : 1;
                 return b.timestamp - a.timestamp;
             });
-            for (var g = 0; g < allDrafts.length; g++) {
-                var date = new Date(allDrafts[g].timestamp * 1000);
+            for (var g = 0; g < active.length; g++) {
+                var date = new Date(active[g].timestamp * 1000);
                 var formatted_date;
                 if ((date.getMonth() + 1) == (new Date().getMonth() + 1)) {
                     formatted_date = month_name[date.getMonth()] + ' ' + date.getDate() + ', ' + ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2);
                 } else {
                     formatted_date = ('0' + (date.getMonth() + 1)).slice(-2) + '.' + ('0' + date.getDate()).slice(-2) + '.' + ('0' + date.getFullYear()).slice(-2);
                 }
-                var first_line = allDrafts[g].value.split('\n').find(function(l) { return l.trim(); }) || '';
+                var first_line = active[g].value.split('\n').find(function(l) { return l.trim(); }) || '';
                 var short_value = $('<span></span>').text(first_line.replace(/^#+\s*/, '').trim()).html().slice(0, 50) || 'Untitled';
-                var is_active = (allDrafts[g].id === draft_id) ? ' active' : '';
-                var is_pinned = pinned.indexOf(allDrafts[g].id) !== -1;
+                var is_active = (active[g].id === draft_id) ? ' active' : '';
+                var is_pinned = pinned.indexOf(active[g].id) !== -1;
                 $('#sidebar-tabs-list').append(
-                    '<div class="sidebar-tab' + is_active + (is_pinned ? ' pinned' : '') + '" data-id="' + allDrafts[g].id + '">' +
+                    '<div class="sidebar-tab' + is_active + (is_pinned ? ' pinned' : '') + '" data-id="' + active[g].id + '">' +
                     '<div class="tab-date">' + formatted_date + '</div>' +
                     '<div class="tab-preview">' + short_value + '</div>' +
-                    '<span class="tab-delete" title="Delete">&#215;</span>' +
+                    '<span class="tab-delete" title="Move to Trash">&#215;</span>' +
                     '</div>'
                 );
+            }
+
+            if (trashed.length > 0) {
+                trashed.sort(function(a, b) { return (b.deletedAt || 0) - (a.deletedAt || 0); });
+                $('#sidebar-tabs-list').append('<div class="sidebar-trash-heading">Trash (' + trashed.length + ')</div>');
+                for (var tr = 0; tr < trashed.length; tr++) {
+                    var tf = trashed[tr].value.split('\n').find(function(l) { return l.trim(); }) || '';
+                    var ts = $('<span></span>').text(tf.replace(/^#+\s*/, '').trim()).html().slice(0, 50) || 'Untitled';
+                    $('#sidebar-tabs-list').append(
+                        '<div class="sidebar-trashed-tab" data-id="' + trashed[tr].id + '">' +
+                        '<div class="tab-preview">' + ts + '</div>' +
+                        '<span class="tab-restore" title="Restore">&#8617;</span>' +
+                        '<span class="tab-delete-perm" title="Delete permanently">&#215;</span>' +
+                        '</div>'
+                    );
+                }
             }
         }
 
@@ -799,6 +944,7 @@ window.GistSync = (function() {
             var today = new Date();
             if (!allDrafts || allDrafts.length <= 1) return;
             for (var i = 0; i < allDrafts.length; i++) {
+                if (allDrafts[i].trashed) continue; // trashed notes are managed separately
                 var date = new Date(allDrafts[i].timestamp * 1000);
                 var diff = Math.floor((((today - date) / 1000) / 60) / 60);
                 if ((allDrafts[i].value === '' || allDrafts[i].value === ' ' || allDrafts[i].value.match(/^\s*$/)) && (allDrafts[i].id != lastId) && diff >= 24) {
@@ -1005,6 +1151,32 @@ window.GistSync = (function() {
         });
 
         //-----------------------------------------------------------------------------------------------
+        // Trash settings:
+        $('#trash-retention').val(localStorage.getItem('trash_retention') || '30');
+        $('#trash-retention').on('change', function() {
+            localStorage.setItem('trash_retention', $(this).val());
+        });
+        $('#settings-empty-trash').click(async function() {
+            var trashed;
+            try { trashed = await NoteDB.getTrashed(); } catch(e) { return; }
+            if (!trashed || trashed.length === 0) return;
+            var msg = 'Permanently delete ' + trashed.length + ' trashed note' + (trashed.length === 1 ? '' : 's') + '? This cannot be undone.';
+            $("#confirm_lightbox").html('<div id="confirm_message">' + msg + '</div><div id="confirm_buttons"><div id="ok">Delete</div><div id="cancel">Cancel</div></div>');
+            $("#confirm_layer").show();
+            $("#confirm_lightbox").show();
+            $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").click(function() {
+                $("#confirm_layer, #confirm_lightbox").hide();
+            });
+            $("#confirm_lightbox #confirm_buttons #ok").click(async function() {
+                for (var ei = 0; ei < trashed.length; ei++) {
+                    try { await NoteDB.delete(trashed[ei].id); } catch(e) {}
+                }
+                $("#confirm_layer, #confirm_lightbox").hide();
+                list_of_drafts();
+            });
+        });
+
+        //-----------------------------------------------------------------------------------------------
         // Auto-hide bottom bar on scroll:
         (function() {
             var lastST = 0;
@@ -1150,6 +1322,42 @@ window.GistSync = (function() {
         });
         document.addEventListener('gistsync:updated', function() { list_of_drafts(); });
 
+        // If remote sync trashes the currently-open note, switch to most recent active:
+        document.addEventListener('gistsync:note-trashed', async function(e) {
+            list_of_drafts();
+            if (e.detail.id !== draft_id) return;
+            var remaining;
+            try { remaining = await NoteDB.getActive(); } catch(er) { remaining = []; }
+            if (remaining && remaining.length > 0) {
+                remaining.sort(function(a,b){return b.timestamp-a.timestamp;});
+                draft_id = remaining[0].id;
+                var tv = remaining[0].value;
+                var tdt = new Date(remaining[0].timestamp * 1000);
+                editor_updating = true; if (inkEditor) inkEditor.update(tv); editor_updating = false;
+                if (tv.length < 10000) { $('#printable_text').text(tv); } else { $('#printable_text').html(save_the_world_message); }
+                count_value(tv);
+                $('#count').show();
+                $('#status_text').html('Saved in your browser storage as draft on ' + month_name[tdt.getMonth()] + '&nbsp;' + tdt.getDate() + ', ' + tdt.getFullYear() + ', at ' + ('0' + tdt.getHours()).slice(-2) + ':' + ('0' + tdt.getMinutes()).slice(-2) + ':' + ('0' + tdt.getSeconds()).slice(-2));
+                $('#status_text_by_default').hide();
+                $('#status_text').show();
+                reset_telegraph_box();
+                $('#create_temp_url').show(); $('#download_note').show();
+                localStorage.setItem('last_modified_id', draft_id);
+            } else {
+                draft_id = generate_id();
+                editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
+                $('#printable_text').text('');
+                localStorage.removeItem('last_modified_id');
+                reset_telegraph_box();
+                $('#count').hide();
+                $('#count #count_chars, #count #count_words').text('');
+                $('#status_text').hide();
+                $('#status_text_by_default').show();
+                $('#create_temp_url').hide(); $('#download_note').hide();
+                document.title = default_page_title;
+            }
+        });
+
         // Refresh editor if the currently-open note was updated by a pull:
         document.addEventListener('gistsync:note-updated', function(e) {
             if (e.detail.id !== draft_id) return;
@@ -1284,6 +1492,11 @@ window.GistSync = (function() {
 <div class="settings-card" id="gist-toast-card" style="display:none;"><div class="settings-card-info"><div class="settings-card-name">Sync notifications</div><div class="settings-card-desc">Show a brief toast when notes are pulled from another device</div></div><button id="toggle-gist-toast">On</button></div>
 <div id="gist-connect-status"></div>
 </div>
+</div>
+<div class="settings-section">
+<div class="settings-section-label">Trash</div>
+<div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Retention period</div><div class="settings-card-desc">How long to keep trashed notes before permanently deleting them</div></div><select id="trash-retention"><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option><option value="60">60 days</option><option value="0">Forever</option></select></div>
+<div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Empty Trash</div><div class="settings-card-desc">Permanently delete all trashed notes right now</div></div><button id="settings-empty-trash" class="settings-btn-danger">Empty</button></div>
 </div>
 <div class="settings-section">
 <div class="settings-section-label">Danger Zone</div>
