@@ -61,6 +61,19 @@
 .trash-item-delete:hover{background:rgba(255,59,48,0.12);color:#ff3b30;}
 #trash-empty-state{text-align:center;padding:60px 20px;color:#aaa;font-size:14px;}
 #trash-retention{padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:13px;background:#fff;color:#000;cursor:pointer;}
+#pat-share-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:20000;display:flex;align-items:center;justify-content:center;}
+#pat-share-box{background:#fff;border-radius:14px;padding:24px;max-width:320px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.18);text-align:center;position:relative;}
+#pat-share-box h3{margin:0 0 6px;font-size:16px;font-weight:600;}
+#pat-share-box p{margin:0 0 14px;font-size:12px;color:#888;line-height:1.5;}
+#pat-share-url-row{display:flex;gap:6px;margin-bottom:14px;}
+#pat-share-url{flex:1;font-size:11px;padding:6px 8px;border:1px solid #ddd;border-radius:7px;background:#f7f7f7;color:#555;min-width:0;}
+#pat-share-copy{flex-shrink:0;padding:6px 12px;border:none;border-radius:7px;background:#111;color:#fff;cursor:pointer;font-size:12px;font-family:inherit;}
+#pat-share-copy:hover{background:#333;}
+#pat-share-qr{margin:0 auto 14px;width:180px;height:180px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:12px;}
+#pat-share-qr img{width:180px;height:180px;}
+#pat-share-close{background:none;border:none;cursor:pointer;font-size:13px;color:#555;font-family:inherit;padding:5px 14px;border-radius:7px;}
+#pat-share-close:hover{background:#f0f0f0;}
+#pat-share-warn{font-size:11px;color:#ff9500;margin-bottom:14px;}
 #sidebar.collapsed #sidebar-theme #style_mode,#sidebar.collapsed #trash-icon{display:none;}
 #sidebar.collapsed:not(.just-collapsed):hover #sidebar-theme #style_mode{display:flex;}
 #sidebar.collapsed:not(.just-collapsed):hover #trash-icon{display:inline-flex;}
@@ -1265,6 +1278,31 @@ window.GistSync = (function() {
             await GistSync.pull();
             $('#gist-sync-now-btn').prop('disabled', false);
         });
+        $('#gist-share-device-btn').click(async function() {
+            var pat = localStorage.getItem('gist_pat');
+            if (!pat) return;
+            var shareUrl = location.origin + location.pathname + '#pat=' + encodeURIComponent(pat);
+            $('#pat-share-url').val(shareUrl);
+            $('#pat-share-qr').text('Generating QR\u2026');
+            $('#pat-share-overlay').show();
+            try {
+                var qrMod = await import('https://esm.sh/qrcode');
+                var QRCode = qrMod.default || qrMod;
+                var dataUrl = await QRCode.toDataURL(shareUrl, { errorCorrectionLevel: 'M', width: 180, margin: 1 });
+                $('#pat-share-qr').html('<img src="' + dataUrl + '" alt="QR code">');
+            } catch(e) {
+                $('#pat-share-qr').text('QR unavailable — use the link above.');
+            }
+        });
+        $('#pat-share-copy').click(function() {
+            navigator.clipboard.writeText($('#pat-share-url').val()).then(function() {
+                $('#pat-share-copy').text('Copied!');
+                setTimeout(function() { $('#pat-share-copy').text('Copy'); }, 2000);
+            });
+        });
+        $('#pat-share-close, #pat-share-overlay').click(function(e) {
+            if (e.target === this) $('#pat-share-overlay').hide();
+        });
         $('#sync-indicator').click(async function() {
             await GistSync.push();
             await GistSync.pull();
@@ -1610,6 +1648,15 @@ window.GistSync = (function() {
 <div id="sel-toolbar" style="display:none;"><button class="sel-btn" data-fmt="bold"><b>B</b></button><button class="sel-btn" data-fmt="italic"><i>I</i></button><button class="sel-btn" data-fmt="strikethrough"><s>S</s></button><button class="sel-btn" data-fmt="code"><code>{ }</code></button></div>
 <div id="note-ctx-menu" style="display:none;"><div class="ctx-item" id="ctx-pin-note">Pin</div><div class="ctx-item" id="ctx-mark-temp">Mark as temporary</div><div class="ctx-separator"></div><div class="ctx-item ctx-danger" id="ctx-delete-note">Delete</div></div>
 <div id="sync-toast"></div>
+<div id="pat-share-overlay" style="display:none;">
+<div id="pat-share-box">
+<h3>Add to another device</h3>
+<p>Open this link on your other device to connect instantly. Don't share it with anyone else — it contains your GitHub PAT.</p>
+<div id="pat-share-url-row"><input id="pat-share-url" readonly><button id="pat-share-copy">Copy</button></div>
+<div id="pat-share-qr">Generating QR&hellip;</div>
+<button id="pat-share-close">Close</button>
+</div>
+</div>
 <div id="confirm_layer" style="display:none;"></div>
 <div id="confirm_lightbox" style="display:none;"></div>
 <div id="settings-page" style="display:none;">
@@ -1630,7 +1677,7 @@ window.GistSync = (function() {
 <div class="settings-card" id="gist-sync-card">
 <div class="settings-card-info"><div class="settings-card-name">GitHub Gist Sync</div><div class="settings-card-desc">Sync notes across devices using a private GitHub Gist. Paste the same PAT on each device &mdash; no extra setup needed. Requires a GitHub PAT with <code>gist</code> scope.</div></div>
 <div id="gist-not-connected"><input id="gist-pat-input" type="password" placeholder="Paste GitHub PAT (gist scope)&hellip;" autocomplete="off"><div class="gist-sync-actions"><button id="gist-connect-btn">Connect</button></div></div>
-<div id="gist-connected" style="display:none;"><div class="gist-sync-actions"><button id="gist-sync-now-btn">Sync now</button><button id="gist-disconnect-btn" class="settings-btn-danger">Disconnect</button></div></div>
+<div id="gist-connected" style="display:none;"><div class="gist-sync-actions"><button id="gist-sync-now-btn">Sync now</button><button id="gist-share-device-btn">Add to another device</button><button id="gist-disconnect-btn" class="settings-btn-danger">Disconnect</button></div></div>
 <div class="settings-card" id="gist-toast-card" style="display:none;"><div class="settings-card-info"><div class="settings-card-name">Sync notifications</div><div class="settings-card-desc">Show a brief toast when notes are pulled from another device</div></div><button id="toggle-gist-toast">On</button></div>
 <div id="gist-connect-status"></div>
 </div>
