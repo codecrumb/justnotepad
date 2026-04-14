@@ -311,7 +311,14 @@ window.GistSync = (function() {
             var mergedPinned = localPinned.concat(remotePinned.filter(function(id) { return localPinned.indexOf(id) === -1; }));
 
             var notesList = Object.keys(mergedNotes).map(function(id) { return mergedNotes[id]; });
-            files['_meta.json'] = { content: JSON.stringify({ version: 1, notes: notesList, pinned: mergedPinned, deleted: mergedTombstones }) };
+            var localRetention = parseInt(localStorage.getItem('trash_retention') || '30', 10);
+            var remoteRetention = remoteMeta.trash_retention !== undefined ? parseInt(remoteMeta.trash_retention, 10) : localRetention;
+            var mergedRetention = (localRetention === 0 || remoteRetention === 0) ? 0 : Math.max(localRetention, remoteRetention);
+            if (mergedRetention !== localRetention) {
+                localStorage.setItem('trash_retention', String(mergedRetention));
+                $('#trash-retention').val(String(mergedRetention));
+            }
+            files['_meta.json'] = { content: JSON.stringify({ version: 1, notes: notesList, pinned: mergedPinned, deleted: mergedTombstones, trash_retention: mergedRetention }) };
 
             var res = await fetch(API + '/gists/' + _gistId, { method: 'PATCH', headers: hdrs(), body: JSON.stringify({ files: files }) });
             if (!res.ok) throw new Error('Push failed: ' + res.status);
@@ -368,6 +375,15 @@ window.GistSync = (function() {
                 var ep = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
                 var mp = ep.concat(meta.pinned.filter(function(id) { return ep.indexOf(id) === -1; }));
                 localStorage.setItem('pinned_notes', JSON.stringify(mp));
+            }
+            if (meta.trash_retention !== undefined) {
+                var lr = parseInt(localStorage.getItem('trash_retention') || '30', 10);
+                var rr2 = parseInt(meta.trash_retention, 10);
+                var maxR = (lr === 0 || rr2 === 0) ? 0 : Math.max(lr, rr2);
+                if (maxR !== lr) {
+                    localStorage.setItem('trash_retention', String(maxR));
+                    $('#trash-retention').val(String(maxR));
+                }
             }
             if (changedCount > 0) {
                 document.dispatchEvent(new Event('gistsync:updated'));
