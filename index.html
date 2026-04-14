@@ -1112,9 +1112,7 @@ window.GistSync = (function() {
             else { localStorage.setItem('gist_toast', '0'); $(this).text('Off'); }
         });
         $('#settings-gear').on('click.gistsync', updateGistSettingsUI);
-        $('#gist-connect-btn').click(async function() {
-            var pat = $('#gist-pat-input').val().trim();
-            if (!pat) return;
+        async function doGistConnect(pat) {
             $('#gist-connect-btn').prop('disabled', true).text('Connecting\u2026');
             $('#gist-connect-status').text('');
             try {
@@ -1125,6 +1123,40 @@ window.GistSync = (function() {
                 $('#gist-connect-status').text('Error: ' + (e.message || 'Could not connect.'));
             }
             $('#gist-connect-btn').prop('disabled', false).text('Connect');
+        }
+        function exportBackupNow(allDrafts) {
+            var backup = { version: 1, exported: Date.now(), notes: allDrafts, pinned: JSON.parse(localStorage.getItem('pinned_notes') || '[]') };
+            var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = 'justnotepad-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+            a.click(); URL.revokeObjectURL(url);
+        }
+        $('#gist-connect-btn').click(async function() {
+            var pat = $('#gist-pat-input').val().trim();
+            if (!pat) return;
+            var activeNotes;
+            try { activeNotes = await NoteDB.getActive(); } catch(e) { activeNotes = []; }
+            if (activeNotes.length === 0) { doGistConnect(pat); return; }
+            // Has notes — offer a backup before connecting
+            $("#confirm_lightbox").html(
+                '<div id="confirm_message">Back up your notes before syncing?<br><small style="color:#888;font-weight:normal;">If anything goes wrong on first sync, you\u2019ll have a local copy.</small></div>' +
+                '<div id="confirm_buttons"><div id="ok">Export &amp; Connect</div><div id="cancel">Skip</div></div>'
+            );
+            $("#confirm_layer").show();
+            $("#confirm_lightbox").show();
+            $("#confirm_layer").off('click.gistbackup').on('click.gistbackup', function() {
+                $("#confirm_layer, #confirm_lightbox").hide();
+            });
+            $("#confirm_lightbox #confirm_buttons #cancel").off('click.gistbackup').on('click.gistbackup', function() {
+                $("#confirm_layer, #confirm_lightbox").hide();
+                doGistConnect(pat);
+            });
+            $("#confirm_lightbox #confirm_buttons #ok").off('click.gistbackup').on('click.gistbackup', function() {
+                $("#confirm_layer, #confirm_lightbox").hide();
+                exportBackupNow(activeNotes);
+                doGistConnect(pat);
+            });
         });
         $('#gist-disconnect-btn').click(function() {
             $("#confirm_lightbox").html('<div id="confirm_message">Disconnect GitHub Gist sync? Your notes stay on this device but will no longer sync.</div><div id="confirm_buttons"><div id="ok">Disconnect</div><div id="cancel">Cancel</div></div>');
