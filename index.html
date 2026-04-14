@@ -2,21 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>JustNotepad.com - Online notepad. Create note online</title>
+<title>JustNotepad - Online notepad</title>
 <meta name="description" content="This free online notepad allows you to create notes in a web browser. No sign up required. AutoSave. Multi-Page. Characters & Words Counter." />
 <meta name="keywords" content="online notepad, create note online, notepad, write text, notepad online, notes, free notepad, online" />
 <meta name="robots" content="All,index,follow" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta property="og:title" content="JustNotepad.com - Online notepad. Create note online" />
-<meta property="og:site_name" content="JustNotepad.com" />
+<meta property="og:title" content="JustNotepad - Online notepad" />
+<meta property="og:site_name" content="JustNotepad" />
 <meta property="og:description" content="This free online notepad allows you to create notes in a web browser. No sign up required. AutoSave. Multi-Page. Characters & Words Counter." />
 <meta property="og:type" content="website" />
-<meta property="og:url" content="http://justnotepad.com" />
-<meta property="og:image" content="https://dulcet-kitsune-ea085c.netlify.app/images/logo_og.png" />
-<link rel="alternate" href="https://dulcet-kitsune-ea085c.netlify.app/" hreflang="x-default" />
-<link rel="alternate" href="https://dulcet-kitsune-ea085c.netlify.app/" hreflang="en" />
-<link rel="alternate" href="https://dulcet-kitsune-ea085c.netlify.app/ru/" hreflang="ru" />
-<link rel="canonical" href="https://dulcet-kitsune-ea085c.netlify.app/" />
+<meta property="og:url" content="https://justnotepad.pages.dev" />
+<meta property="og:image" content="/images/logo_og.png" />
+<link rel="alternate" href="https://justnotepad.pages.dev/" hreflang="x-default" />
+<link rel="alternate" href="https://justnotepad.pages.dev/" hreflang="en" />
+<link rel="canonical" href="https://justnotepad.pages.dev/" />
 
 
 <link rel="shortcut icon" href="favicon.ico" />
@@ -36,7 +35,7 @@
 <link rel="prefetch" href="styles/night_mode.css" as="style" />
 <link rel="prefetch" href="images/logo_w.png" as="image" />
 <style>
-#sync-indicator{cursor:pointer;font-size:15px;padding:2px 5px;border-radius:4px;display:none;line-height:1;user-select:none;}
+#sync-indicator{cursor:pointer;font-size:18px;padding:3px 6px;border-radius:4px;display:none;line-height:1;user-select:none;}
 #sync-indicator.sync-ok{color:#34c759;}
 #sync-indicator.sync-error{color:#ff3b30;}
 #sync-indicator.sync-spinning{display:inline-block;animation:sync-spin 1s linear infinite;}
@@ -62,6 +61,12 @@
 .trash-item-delete:hover{background:rgba(255,59,48,0.12);color:#ff3b30;}
 #trash-empty-state{text-align:center;padding:60px 20px;color:#aaa;font-size:14px;}
 #trash-retention{padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:13px;background:#fff;color:#000;cursor:pointer;}
+#sidebar.collapsed #sidebar-theme #style_mode,#sidebar.collapsed #trash-icon{display:none;}
+#sidebar.collapsed:not(.just-collapsed):hover #sidebar-theme #style_mode{display:flex;}
+#sidebar.collapsed:not(.just-collapsed):hover #trash-icon{display:inline-flex;}
+@media screen and (max-width:700px){#sidebar:not(.open) #sidebar-theme #style_mode,#sidebar:not(.open) #trash-icon{display:none;}}
+.sidebar-tab.temp-note{border-left-color:#aaa;border-left-style:dashed;}
+.sidebar-tab.temp-note.active{border-left-color:#555;}
 </style>
 <script type="text/javascript" src="js/jquery/3.7.1/jquery.min.js"></script>
 
@@ -434,8 +439,8 @@ window.GistSync = (function() {
 
 <script type="text/javascript">
     /*
-     * Copyright (c) JustNotepad.com
-     * https://dulcet-kitsune-ea085c.netlify.app/
+     * Copyright (c) JustNotepad
+     * https://justnotepad.pages.dev/
      * Uses IndexedDB via NoteDB wrapper
     */
     $(document).ready(function() {
@@ -450,8 +455,8 @@ window.GistSync = (function() {
         var value;
         var date;
         var month_name = new Array("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec");
-        var save_the_world_message = '<h1>Save Paper. Save Trees. Save the World.</h1><h2>It seems that your text more than 2 sheets of paper...</h2><p>If you want to send your text to your friend or to another device, you can just create a "Temporary link" to sync your text.</p><p>https://dulcet-kitsune-ea085c.netlify.app/faq/#16</p><p>Thanks ;-)</p>';
-        var default_page_title = 'JustNotepad.com - Online notepad. Create note online';
+        var save_the_world_message = '<h1>Save Paper. Save Trees. Save the World.</h1><h2>It seems that your text more than 2 sheets of paper...</h2><p>If you want to send your text to your friend or to another device, you can just create a "Temporary link" to sync your text.</p><p>https://justnotepad.pages.dev/faq/#16</p><p>Thanks ;-)</p>';
+        var default_page_title = 'JustNotepad - Online notepad';
         var status_value_from_url = '';
         var inkEditor = null;
         var editor_updating = false;
@@ -503,6 +508,14 @@ window.GistSync = (function() {
             await NoteDB.open();
             await migrateFromJStorage();
             await purgeExpiredTrash();
+            // Clean up temp notes that don't belong to this tab's session
+            var _tempIds = JSON.parse(sessionStorage.getItem('temp_note_ids') || '[]');
+            var _allForCleanup = await NoteDB.getAll();
+            for (var _d of _allForCleanup) {
+                if (_d.is_temp && !_tempIds.includes(_d.id)) {
+                    try { await NoteDB.delete(_d.id); } catch(e) {}
+                }
+            }
             var allDrafts = await NoteDB.getAll();
             var activeDrafts = allDrafts.filter(function(d) { return !d.trashed; });
             drafts = (activeDrafts.length > 0) ? activeDrafts : null;
@@ -545,7 +558,7 @@ window.GistSync = (function() {
 
         function change_page_title(value) {
             var short_page_title_value = value.trim().replace(/\s\s+/g, ' ').slice(0, 25).trim();
-            document.title = '"' + short_page_title_value + '..." – Draft – JustNotepad.com';
+            document.title = '"' + short_page_title_value + '..." – Draft – JustNotepad';
         }
 
 
@@ -686,7 +699,10 @@ window.GistSync = (function() {
             }
 
             try {
-                await NoteDB.put({ id: draft_id, timestamp: timestamp, value: new_value });
+                var _saveTempIds = JSON.parse(sessionStorage.getItem('temp_note_ids') || '[]');
+                var _saveObj = { id: draft_id, timestamp: timestamp, value: new_value };
+                if (_saveTempIds.includes(draft_id)) _saveObj.is_temp = true;
+                await NoteDB.put(_saveObj);
                 sessionStorage.setItem('last_modified_id', draft_id);
                 if (GistSync.isConnected()) GistSync.schedulePush();
             } catch(e) {
@@ -905,6 +921,8 @@ window.GistSync = (function() {
             ctx_target_id = $(this).data('id');
             var pinned = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
             $('#ctx-pin-note').text(pinned.indexOf(ctx_target_id) !== -1 ? 'Unpin' : 'Pin');
+            var ctxTempIds = JSON.parse(sessionStorage.getItem('temp_note_ids') || '[]');
+            $('#ctx-mark-temp').text(ctxTempIds.includes(ctx_target_id) ? 'Make permanent' : 'Mark as temporary');
             var menu = $('#note-ctx-menu');
             var x = e.clientX, y = e.clientY;
             var mw = 160, mh = 80;
@@ -928,6 +946,25 @@ window.GistSync = (function() {
             if (!ctx_target_id) return;
             $('#note-ctx-menu').hide();
             $('#sidebar-tabs-list .sidebar-tab[data-id="' + ctx_target_id + '"] .tab-delete').trigger('click');
+        });
+        $('#ctx-mark-temp').on('click', async function() {
+            if (!ctx_target_id) return;
+            var tempIds = JSON.parse(sessionStorage.getItem('temp_note_ids') || '[]');
+            var idx = tempIds.indexOf(ctx_target_id);
+            var allD = await NoteDB.getAll();
+            var draft = allD.find(function(d) { return d.id === ctx_target_id; });
+            if (!draft) { $('#note-ctx-menu').hide(); return; }
+            if (idx !== -1) {
+                tempIds.splice(idx, 1);
+                delete draft.is_temp;
+            } else {
+                tempIds.push(ctx_target_id);
+                draft.is_temp = true;
+            }
+            sessionStorage.setItem('temp_note_ids', JSON.stringify(tempIds));
+            await NoteDB.put(draft);
+            $('#note-ctx-menu').hide();
+            list_of_drafts();
         });
 
         //-----------------------------------------------------------------------------------------------
@@ -962,8 +999,10 @@ window.GistSync = (function() {
                 var short_value = $('<span></span>').text(first_line.replace(/^#+\s*/, '').trim()).html().slice(0, 50) || 'Untitled';
                 var is_active = (active[g].id === draft_id) ? ' active' : '';
                 var is_pinned = pinned.indexOf(active[g].id) !== -1;
+                var listTempIds = JSON.parse(sessionStorage.getItem('temp_note_ids') || '[]');
+                var is_temp_cls = listTempIds.includes(active[g].id) ? ' temp-note' : '';
                 $('#sidebar-tabs-list').append(
-                    '<div class="sidebar-tab' + is_active + (is_pinned ? ' pinned' : '') + '" data-id="' + active[g].id + '">' +
+                    '<div class="sidebar-tab' + is_active + (is_pinned ? ' pinned' : '') + is_temp_cls + '" data-id="' + active[g].id + '">' +
                     '<div class="tab-date">' + formatted_date + '</div>' +
                     '<div class="tab-preview">' + short_value + '</div>' +
                     '<span class="tab-delete" title="Move to Trash">&#215;</span>' +
@@ -1230,6 +1269,16 @@ window.GistSync = (function() {
             await GistSync.push();
             await GistSync.pull();
         });
+
+        // Auto-connect via URL fragment: justnotepad.pages.dev/#pat=ghp_xxxxx
+        (function() {
+            var h = location.hash;
+            if (h.startsWith('#pat=') && !GistSync.isConnected()) {
+                var pat = decodeURIComponent(h.slice(5));
+                history.replaceState(null, '', location.pathname + location.search);
+                if (pat) doGistConnect(pat);
+            }
+        })();
 
         //-----------------------------------------------------------------------------------------------
         // Trash settings:
@@ -1548,7 +1597,7 @@ window.GistSync = (function() {
 </div>
 </div></div>
 <div id="sel-toolbar" style="display:none;"><button class="sel-btn" data-fmt="bold"><b>B</b></button><button class="sel-btn" data-fmt="italic"><i>I</i></button><button class="sel-btn" data-fmt="strikethrough"><s>S</s></button><button class="sel-btn" data-fmt="code"><code>{ }</code></button></div>
-<div id="note-ctx-menu" style="display:none;"><div class="ctx-item" id="ctx-pin-note">Pin</div><div class="ctx-separator"></div><div class="ctx-item ctx-danger" id="ctx-delete-note">Delete</div></div>
+<div id="note-ctx-menu" style="display:none;"><div class="ctx-item" id="ctx-pin-note">Pin</div><div class="ctx-item" id="ctx-mark-temp">Mark as temporary</div><div class="ctx-separator"></div><div class="ctx-item ctx-danger" id="ctx-delete-note">Delete</div></div>
 <div id="sync-toast"></div>
 <div id="confirm_layer" style="display:none;"></div>
 <div id="confirm_lightbox" style="display:none;"></div>
