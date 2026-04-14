@@ -1276,7 +1276,18 @@ window.GistSync = (function() {
             if (h.startsWith('#pat=') && !GistSync.isConnected()) {
                 var pat = decodeURIComponent(h.slice(5));
                 history.replaceState(null, '', location.pathname + location.search);
-                if (pat) doGistConnect(pat);
+                if (!pat) return;
+                var msg = 'A GitHub PAT was found in the URL.<br><br>Connect Gist sync using this token?<br><small style="color:#858585">Only confirm if you created this link yourself.</small>';
+                $("#confirm_lightbox").html('<div id="confirm_message" style="font-size:130%">' + msg + '</div><div id="confirm_buttons"><div id="ok">Connect</div><div id="cancel">Cancel</div></div>');
+                $("#confirm_layer").show();
+                $("#confirm_lightbox").show();
+                $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").off('click.patfrag').on('click.patfrag', function() {
+                    $("#confirm_layer, #confirm_lightbox").hide();
+                });
+                $("#confirm_lightbox #confirm_buttons #ok").off('click.patfrag').on('click.patfrag', function() {
+                    $("#confirm_layer, #confirm_lightbox").hide();
+                    doGistConnect(pat);
+                });
             }
         })();
 
