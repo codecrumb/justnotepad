@@ -45,12 +45,23 @@
 .gist-sync-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
 #gist-connect-status{font-size:12px;margin-top:6px;color:#858585;}
 #sync-toast{position:fixed;bottom:54px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.72);color:#fff;padding:7px 16px;border-radius:20px;font-size:13px;z-index:19999;display:none;white-space:nowrap;pointer-events:none;}
-.sidebar-trash-heading{font-size:11px;color:#888;padding:10px 12px 4px;letter-spacing:0.04em;text-transform:uppercase;user-select:none;border-top:1px solid rgba(128,128,128,0.15);margin-top:4px;}
-.sidebar-trashed-tab{display:flex;align-items:center;padding:5px 8px 5px 12px;gap:2px;opacity:0.55;cursor:default;}
-.sidebar-trashed-tab .tab-preview{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit;}
-.tab-restore,.tab-delete-perm{cursor:pointer;padding:2px 6px;border-radius:4px;font-size:14px;flex-shrink:0;line-height:1.4;}
-.tab-restore:hover{background:rgba(52,199,89,0.18);color:#34c759;}
-.tab-delete-perm:hover{background:rgba(255,59,48,0.15);color:#ff3b30;}
+#trash-icon{cursor:pointer;font-size:15px;color:#858585;user-select:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;position:relative;flex-shrink:0;}
+#trash-icon:hover{color:#000;background:#e8e8e8;}
+#trash-badge{position:absolute;top:2px;right:1px;background:#ff3b30;color:#fff;border-radius:8px;font-size:9px;padding:0 3px;min-width:12px;text-align:center;line-height:13px;display:none;}
+#trash-panel{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10001;background:#fff;overflow-y:auto;display:flex;flex-direction:column;}
+#trash-panel-header{display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid #ececec;flex-shrink:0;position:relative;}
+#trash-panel-close{background:none;border:none;cursor:pointer;color:#555;font-size:13px;font-family:inherit;padding:5px 10px;border-radius:5px;line-height:1;}
+#trash-panel-close:hover{background:#f0f0f0;color:#000;}
+#trash-panel-title{position:absolute;left:50%;transform:translateX(-50%);font-size:14px;font-weight:600;color:#111;pointer-events:none;}
+#trash-panel-body{max-width:560px;width:100%;margin:0 auto;padding:20px;flex:1;}
+.trash-item{display:flex;align-items:center;padding:10px 12px;border-radius:8px;margin-bottom:6px;background:#f7f7f7;gap:8px;}
+.trash-item-info{flex:1;min-width:0;}
+.trash-item-preview{font-size:13px;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.trash-item-date{font-size:11px;color:#aaa;margin-top:2px;}
+.trash-item-restore,.trash-item-delete{cursor:pointer;padding:5px 8px;border-radius:6px;font-size:14px;flex-shrink:0;line-height:1;}
+.trash-item-restore:hover{background:rgba(52,199,89,0.15);color:#34c759;}
+.trash-item-delete:hover{background:rgba(255,59,48,0.12);color:#ff3b30;}
+#trash-empty-state{text-align:center;padding:60px 20px;color:#aaa;font-size:14px;}
 #trash-retention{padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:13px;background:#fff;color:#000;cursor:pointer;}
 </style>
 <script type="text/javascript" src="js/jquery/3.7.1/jquery.min.js"></script>
@@ -814,26 +825,73 @@ window.GistSync = (function() {
             }
             list_of_drafts();
         });
-        // Restore trashed note:
-        $('#sidebar-tabs-list').on('click', '.tab-restore', async function(e) {
-            e.stopPropagation();
-            var id = $(this).closest('.sidebar-trashed-tab').data('id');
+        // Trash panel:
+        async function renderTrashPanel() {
+            var trashed;
+            try { trashed = await NoteDB.getTrashed(); } catch(e) { trashed = []; }
+            var $list = $('#trash-panel-list').empty();
+            if (trashed.length === 0) {
+                $('#trash-panel-empty-btn').hide();
+                $list.html('<div id="trash-empty-state">Trash is empty</div>');
+                return;
+            }
+            $('#trash-panel-empty-btn').show();
+            trashed.sort(function(a, b) { return (b.deletedAt || 0) - (a.deletedAt || 0); });
+            for (var ti = 0; ti < trashed.length; ti++) {
+                var tf = trashed[ti].value.split('\n').find(function(l) { return l.trim(); }) || '';
+                var tp = $('<span>').text(tf.replace(/^#+\s*/, '').trim()).html().slice(0, 80) || 'Untitled';
+                var dAt = trashed[ti].deletedAt ? new Date(trashed[ti].deletedAt * 1000) : null;
+                var dateStr = dAt ? month_name[dAt.getMonth()] + ' ' + dAt.getDate() + ', ' + dAt.getFullYear() : '';
+                $list.append(
+                    '<div class="trash-item" data-id="' + trashed[ti].id + '">' +
+                    '<div class="trash-item-info"><div class="trash-item-preview">' + tp + '</div>' +
+                    (dateStr ? '<div class="trash-item-date">Deleted ' + dateStr + '</div>' : '') +
+                    '</div>' +
+                    '<span class="trash-item-restore" title="Restore">&#8617;</span>' +
+                    '<span class="trash-item-delete" title="Delete permanently">&#215;</span>' +
+                    '</div>'
+                );
+            }
+        }
+        $('#trash-icon').on('click', function() {
+            renderTrashPanel();
+            $('#trash-panel').show();
+        });
+        $('#trash-panel-close').on('click', function() { $('#trash-panel').hide(); });
+        $('#trash-panel-list').on('click', '.trash-item-restore', async function() {
+            var id = $(this).closest('.trash-item').data('id');
             try { await NoteDB.untrash(id); } catch(e) {}
+            renderTrashPanel();
             list_of_drafts();
         });
-        // Permanently delete trashed note:
-        $('#sidebar-tabs-list').on('click', '.tab-delete-perm', function(e) {
-            e.stopPropagation();
-            var perm_id = $(this).closest('.sidebar-trashed-tab').data('id');
+        $('#trash-panel-list').on('click', '.trash-item-delete', function() {
+            var perm_id = $(this).closest('.trash-item').data('id');
             $("#confirm_lightbox").html('<div id="confirm_message">Permanently delete this note? This cannot be undone.</div><div id="confirm_buttons"><div id="ok">Delete</div><div id="cancel">Cancel</div></div>');
             $("#confirm_layer").show();
             $("#confirm_lightbox").show();
-            $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").click(function() {
-                $("#confirm_layer, #confirm_lightbox").hide();
-            });
+            $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").click(function() { $("#confirm_layer, #confirm_lightbox").hide(); });
             $("#confirm_lightbox #confirm_buttons #ok").click(async function() {
                 try { await NoteDB.delete(perm_id); } catch(e) {}
                 $("#confirm_layer, #confirm_lightbox").hide();
+                renderTrashPanel();
+                list_of_drafts();
+            });
+        });
+        $('#trash-panel-empty-btn').on('click', async function() {
+            var trashed;
+            try { trashed = await NoteDB.getTrashed(); } catch(e) { return; }
+            if (!trashed || trashed.length === 0) return;
+            var msg = 'Permanently delete ' + trashed.length + ' trashed note' + (trashed.length === 1 ? '' : 's') + '? This cannot be undone.';
+            $("#confirm_lightbox").html('<div id="confirm_message">' + msg + '</div><div id="confirm_buttons"><div id="ok">Delete</div><div id="cancel">Cancel</div></div>');
+            $("#confirm_layer").show();
+            $("#confirm_lightbox").show();
+            $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").click(function() { $("#confirm_layer, #confirm_lightbox").hide(); });
+            $("#confirm_lightbox #confirm_buttons #ok").click(async function() {
+                for (var ei = 0; ei < trashed.length; ei++) {
+                    try { await NoteDB.delete(trashed[ei].id); } catch(e) {}
+                }
+                $("#confirm_layer, #confirm_lightbox").hide();
+                renderTrashPanel();
                 list_of_drafts();
             });
         });
@@ -914,21 +972,7 @@ window.GistSync = (function() {
                 );
             }
 
-            if (trashed.length > 0) {
-                trashed.sort(function(a, b) { return (b.deletedAt || 0) - (a.deletedAt || 0); });
-                $('#sidebar-tabs-list').append('<div class="sidebar-trash-heading">Trash (' + trashed.length + ')</div>');
-                for (var tr = 0; tr < trashed.length; tr++) {
-                    var tf = trashed[tr].value.split('\n').find(function(l) { return l.trim(); }) || '';
-                    var ts = $('<span></span>').text(tf.replace(/^#+\s*/, '').trim()).html().slice(0, 50) || 'Untitled';
-                    $('#sidebar-tabs-list').append(
-                        '<div class="sidebar-trashed-tab" data-id="' + trashed[tr].id + '">' +
-                        '<div class="tab-preview">' + ts + '</div>' +
-                        '<span class="tab-restore" title="Restore">&#8617;</span>' +
-                        '<span class="tab-delete-perm" title="Delete permanently">&#215;</span>' +
-                        '</div>'
-                    );
-                }
-            }
+            $('#trash-badge').text(trashed.length > 0 ? trashed.length : '').toggle(trashed.length > 0);
         }
 
 
@@ -1140,12 +1184,18 @@ window.GistSync = (function() {
             if (activeNotes.length === 0) { doGistConnect(pat); return; }
             // Has notes — offer a backup before connecting
             $("#confirm_lightbox").html(
+                '<div style="position:relative;">' +
+                '<button id="gist-backup-x" style="position:absolute;top:10px;right:12px;border:none;background:none;font-size:20px;cursor:pointer;color:#ccc;line-height:1;padding:2px;" title="Cancel">&times;</button>' +
                 '<div id="confirm_message">Back up your notes before syncing?<br><small style="color:#888;font-weight:normal;">If anything goes wrong on first sync, you\u2019ll have a local copy.</small></div>' +
-                '<div id="confirm_buttons"><div id="ok">Export &amp; Connect</div><div id="cancel">Skip</div></div>'
+                '<div id="confirm_buttons"><div id="ok">Export &amp; Connect</div><div id="cancel">Skip</div></div>' +
+                '</div>'
             );
             $("#confirm_layer").show();
             $("#confirm_lightbox").show();
             $("#confirm_layer").off('click.gistbackup').on('click.gistbackup', function() {
+                $("#confirm_layer, #confirm_lightbox").hide();
+            });
+            $("#confirm_lightbox #gist-backup-x").off('click.gistbackup').on('click.gistbackup', function() {
                 $("#confirm_layer, #confirm_lightbox").hide();
             });
             $("#confirm_lightbox #confirm_buttons #cancel").off('click.gistbackup').on('click.gistbackup', function() {
@@ -1204,6 +1254,7 @@ window.GistSync = (function() {
                     try { await NoteDB.delete(trashed[ei].id); } catch(e) {}
                 }
                 $("#confirm_layer, #confirm_lightbox").hide();
+                if (typeof renderTrashPanel === 'function' && $('#trash-panel').is(':visible')) renderTrashPanel();
                 list_of_drafts();
             });
         });
@@ -1468,7 +1519,7 @@ window.GistSync = (function() {
 <div id="sidebar-header"><span id="sidebar-toggle" title="Toggle sidebar">&#9776;</span></div>
 <div id="sidebar-new-btn"><span class="new-icon">+</span><span class="new-label">&nbsp;New</span></div>
 <div id="sidebar-tabs-list"></div>
-<div id="sidebar-theme"><div id="style_mode"><span id="auto_mode"></span><span id="light_mode" style="display:none;"></span><span id="dark_mode" style="display:none;"></span></div><span id="sync-indicator" title="Synced &mdash; click to sync now">&#8635;</span><span id="settings-gear" title="Settings">&#9881;</span></div>
+<div id="sidebar-theme"><div id="style_mode"><span id="auto_mode"></span><span id="light_mode" style="display:none;"></span><span id="dark_mode" style="display:none;"></span></div><span id="sync-indicator" title="Synced &mdash; click to sync now">&#8635;</span><span id="trash-icon" title="Trash">&#128465;<span id="trash-badge"></span></span><span id="settings-gear" title="Settings">&#9881;</span></div>
 </div>
 <div id="main-content">
 <div id="editable_text_box">
@@ -1538,6 +1589,10 @@ window.GistSync = (function() {
 </div>
 </div>
 
+<div id="trash-panel" style="display:none;">
+<div id="trash-panel-header"><button id="trash-panel-close">&#8592; Back</button><span id="trash-panel-title">Trash</span><button id="trash-panel-empty-btn" class="settings-btn-danger" style="display:none;margin-left:auto;">Empty</button></div>
+<div id="trash-panel-body"><div id="trash-panel-list"></div></div>
+</div>
 <script src="js/theme.js"></script>
 </body>
 </html>
