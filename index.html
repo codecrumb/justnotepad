@@ -471,7 +471,7 @@ window.GistSync = (function() {
                     await NoteDB.putAll(oldDrafts);
                 }
                 if (oldLastId) {
-                    localStorage.setItem('last_modified_id', oldLastId);
+                    sessionStorage.setItem('last_modified_id', oldLastId);
                 }
                 localStorage.removeItem('__jstorage'); // only removed after successful write
             } catch(e) {
@@ -514,9 +514,9 @@ window.GistSync = (function() {
         //-----------------------------------------------------------------------------------------------
         // Resolve last_modified_id and draft_id from raw localStorage:
         if (status_value_from_url == 'yes') {
-            localStorage.removeItem('last_modified_id');
+            sessionStorage.removeItem('last_modified_id');
         } else {
-            last_modified_id = localStorage.getItem('last_modified_id');
+            last_modified_id = sessionStorage.getItem('last_modified_id');
         }
 
         if (!last_modified_id || status_value_from_url == 'yes') {
@@ -529,7 +529,7 @@ window.GistSync = (function() {
         if (drafts && !drafts.some(function(d) { return d.id === draft_id; })) {
             var _sortedActive = drafts.slice().sort(function(a, b) { return b.timestamp - a.timestamp; });
             draft_id = _sortedActive[0].id;
-            localStorage.setItem('last_modified_id', draft_id);
+            sessionStorage.setItem('last_modified_id', draft_id);
         }
 
 
@@ -569,7 +569,7 @@ window.GistSync = (function() {
                 // Auto-skip very large last draft to prevent browser freeze (>1M chars):
                 for (var b = 0; b < drafts.length; b++) {
                     if ((drafts[b].id == last_modified_id) && (drafts[b].value.length > 1000000)) {
-                        localStorage.removeItem('last_modified_id');
+                        sessionStorage.removeItem('last_modified_id');
                         location.reload(true);
                         break;
                     }
@@ -687,7 +687,7 @@ window.GistSync = (function() {
 
             try {
                 await NoteDB.put({ id: draft_id, timestamp: timestamp, value: new_value });
-                localStorage.setItem('last_modified_id', draft_id);
+                sessionStorage.setItem('last_modified_id', draft_id);
                 if (GistSync.isConnected()) GistSync.schedulePush();
             } catch(e) {
                 console.error('Save failed:', e);
@@ -777,7 +777,7 @@ window.GistSync = (function() {
                     reset_telegraph_box();
                     $('#create_temp_url').show(); $('#download_note').show();
                     change_page_title(v);
-                    localStorage.setItem('last_modified_id', draft_id);
+                    sessionStorage.setItem('last_modified_id', draft_id);
                     break;
                 }
             }
@@ -807,12 +807,12 @@ window.GistSync = (function() {
                     $('#status_text').show();
                     reset_telegraph_box();
                     $('#create_temp_url').show(); $('#download_note').show();
-                    localStorage.setItem('last_modified_id', draft_id);
+                    sessionStorage.setItem('last_modified_id', draft_id);
                 } else {
                     draft_id = generate_id();
                     editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
                     $('#printable_text').text('');
-                    localStorage.removeItem('last_modified_id');
+                    sessionStorage.removeItem('last_modified_id');
                     reset_telegraph_box();
                     $('#count').hide();
                     $('#count #count_chars, #count #count_words').text('');
@@ -983,7 +983,7 @@ window.GistSync = (function() {
         async function delete_empty_drafts_24() {
             var allDrafts;
             try { allDrafts = await NoteDB.getAll(); } catch(e) { return; }
-            var lastId = localStorage.getItem('last_modified_id');
+            var lastId = sessionStorage.getItem('last_modified_id');
             var today = new Date();
             if (!allDrafts || allDrafts.length <= 1) return;
             for (var i = 0; i < allDrafts.length; i++) {
@@ -1030,7 +1030,7 @@ window.GistSync = (function() {
             draft_id = generate_id();
             editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
             $('#printable_text').text('');
-            localStorage.removeItem('last_modified_id');
+            sessionStorage.removeItem('last_modified_id');
             reset_telegraph_box();
             $('#count').hide();
             $('#count #count_chars, #count #count_words').text('');
@@ -1052,7 +1052,7 @@ window.GistSync = (function() {
             });
             $("#confirm_lightbox #confirm_buttons #ok").click(async function() {
                 try { await NoteDB.clear(); } catch(e) {}
-                localStorage.removeItem('last_modified_id');
+                sessionStorage.removeItem('last_modified_id');
                 draft_id = generate_id();
                 editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
                 $('#printable_text').text('');
@@ -1424,12 +1424,12 @@ window.GistSync = (function() {
                 $('#status_text').show();
                 reset_telegraph_box();
                 $('#create_temp_url').show(); $('#download_note').show();
-                localStorage.setItem('last_modified_id', draft_id);
+                sessionStorage.setItem('last_modified_id', draft_id);
             } else {
                 draft_id = generate_id();
                 editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
                 $('#printable_text').text('');
-                localStorage.removeItem('last_modified_id');
+                sessionStorage.removeItem('last_modified_id');
                 reset_telegraph_box();
                 $('#count').hide();
                 $('#count #count_chars, #count #count_words').text('');
