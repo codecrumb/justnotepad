@@ -142,6 +142,10 @@
 #footer_social_b .addthis_toolbox .addthis_button_facebook_like .fb_iframe_widget iframe { height: 20px !important; position: static !important; margin: 0 -5px !important; }
 #footer_social_b .addthis_toolbox .addthis_button_tweet .tweet_iframe_widget { width: 100% !important; }
 
+/* Terms/FAQ/About page heading margins (Tailwind preflight zeros browser defaults) */
+#terms h2, #faq h2, #about h1 { margin: 0.83em 0; }
+#terms h3, #faq h3, #about h2 { margin: 1em 0 0.5em; }
+
 /* Feedback robot test box */
 #feedback_form #feedback_robot_test #feedback_robot_test_q_box div:nth-child(2) {
   font-size: 140%;
@@ -190,7 +194,8 @@
   #sidebar.collapsed:not(.just-collapsed):hover #sidebar-bottom { display: block; }
   #sidebar.collapsed:not(.just-collapsed):hover #settings-gear { display: inline-flex; }
   #sidebar.collapsed #sidebar-theme #style_mode,
-  #sidebar.collapsed #trash-icon { display: none; }
+  #sidebar.collapsed #trash-icon,
+  #sidebar.collapsed #settings-gear { display: none; }
   #sidebar.collapsed:not(.just-collapsed):hover #sidebar-theme #style_mode { display: flex; }
   #sidebar.collapsed:not(.just-collapsed):hover #trash-icon { display: inline-flex; }
 }
@@ -207,7 +212,8 @@
   #sidebar:not(.open) .new-label { display: none; }
   #sidebar:not(.open) #sidebar-theme { justify-content: flex-start; padding: 8px 12px; }
   #sidebar:not(.open) #sidebar-theme #style_mode,
-  #sidebar:not(.open) #trash-icon { display: none; }
+  #sidebar:not(.open) #trash-icon,
+  #sidebar:not(.open) #settings-gear { display: none; }
   .sidebar-tab .tab-delete { display: block; }
 }
 
