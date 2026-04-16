@@ -102,6 +102,34 @@
 #editable_text_box .ink-mde-details { display: none; }
 #editable_text_box .cm-scroller { overflow: visible !important; }
 
+/* Dynamically injected share-link elements (built via JS innerHTML) */
+#temp_url {
+  width: calc(100% - 70px);
+  max-width: 455px;
+  padding: 5px;
+  border-radius: 2px;
+  border: 1px solid var(--color-light-gray);
+  color: var(--color-mid-gray);
+  background: #fff;
+  cursor: text;
+}
+.dark #temp_url { background: var(--color-dark-bg); border-color: var(--color-dark-border2); }
+#temp_url:hover, #temp_url:focus { border-color: #aaa; outline: none; }
+#copy_url {
+  margin-left: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--color-light-gray);
+  border-radius: 2px;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+  font-size: 90%;
+  vertical-align: middle;
+}
+.dark #copy_url { background: var(--color-dark-bg); border-color: var(--color-dark-border2); color: var(--color-mid-gray); }
+#copy_url:hover { border-color: #aaa; color: #000; }
+.dark #copy_url:hover { color: #fff; }
+
 /* Confirm overlay background */
 #confirm_layer {
   background: url(../images/b.png) repeat grey;
@@ -216,7 +244,8 @@
   .settings-card-info { @apply flex-1 min-w-0; }
   .settings-card-name { @apply text-[14px] font-medium text-[#111] dark:text-white mb-[2px]; }
   .settings-card-desc { @apply text-[12px] text-[#999] dark:text-[#555] leading-[1.4]; }
-  .settings-card > button { @apply flex-shrink-0 px-[18px] py-[7px] border-none rounded-[7px] bg-[#111] dark:bg-white text-white dark:text-[#111] cursor-pointer text-[13px] font-medium hover:bg-[#333] dark:hover:bg-[#ddd]; }
+  .settings-card > button,
+  .gist-sync-actions button:not(.settings-btn-danger) { @apply flex-shrink-0 px-[18px] py-[7px] border-none rounded-[7px] bg-[#111] dark:bg-white text-white dark:text-[#111] cursor-pointer text-[13px] font-medium hover:bg-[#333] dark:hover:bg-[#ddd]; }
   .settings-btn-danger { @apply flex-shrink-0 px-[18px] py-[7px] border-none rounded-[7px] bg-[#ff3b30] text-white cursor-pointer text-[13px] font-medium hover:bg-[#d32f2f]; }
 
   /* Context menu */
