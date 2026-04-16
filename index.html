@@ -216,6 +216,8 @@ window.GistSync = (function() {
         else if (state === 'ok')  { $el.show().addClass('sync-ok').attr('title', 'Synced \u2014 click to sync now'); }
         else if (state === 'error'){ $el.show().addClass('sync-error').attr('title', 'Sync error \u2014 click to retry'); }
         else if (state === 'hidden'){ $el.hide(); }
+        if (state === 'hidden') { $('body').removeClass('sync-active'); }
+        else { $('body').addClass('sync-active'); }
     }
 
     async function push() {

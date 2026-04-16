@@ -196,6 +196,7 @@
   #sidebar.collapsed #sidebar-theme #style_mode,
   #sidebar.collapsed #trash-icon,
   #sidebar.collapsed #settings-gear { display: none; }
+  body:not(.sync-active) #sidebar.collapsed #sidebar-theme #style_mode { display: flex; }
   #sidebar.collapsed:not(.just-collapsed):hover #sidebar-theme #style_mode { display: flex; }
   #sidebar.collapsed:not(.just-collapsed):hover #trash-icon { display: inline-flex; }
 }
@@ -214,6 +215,7 @@
   #sidebar:not(.open) #sidebar-theme #style_mode,
   #sidebar:not(.open) #trash-icon,
   #sidebar:not(.open) #settings-gear { display: none; }
+  body:not(.sync-active) #sidebar:not(.open) #sidebar-theme #style_mode { display: flex; }
   .sidebar-tab .tab-delete { display: block; }
 }
 
