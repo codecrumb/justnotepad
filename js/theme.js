@@ -8,10 +8,7 @@
 
     function applyTheme(theme) {
         var dark = isDark(theme);
-        var link = document.getElementById('theme-css');
-        if (link) {
-            link.href = link.getAttribute(dark ? 'data-dark' : 'data-light');
-        }
+        document.documentElement.classList.toggle('dark', dark);
         if (window.inkEditor) {
             window.inkEditor.reconfigure({ options: { appearance: dark ? 'dark' : 'light' } });
         }

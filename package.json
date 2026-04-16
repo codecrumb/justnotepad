@@ -1,0 +1,26 @@
+{
+  "name": "justnotepad",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tailwindcss -i styles/input.css -o styles/output.css --minify",
+    "watch": "tailwindcss -i styles/input.css -o styles/output.css --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codecrumb/justnotepad.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/codecrumb/justnotepad/issues"
+  },
+  "homepage": "https://github.com/codecrumb/justnotepad#readme",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.2",
+    "tailwindcss": "^4.2.2"
+  }
+}
