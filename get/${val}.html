@@ -1,8 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<!-- Mirrored from justnotepad.com/get/abe786eedc0622a5047f59b20cd143be by HTTrack Website Copier/3.x [XR&CO'2014], Sat, 06 Aug 2022 18:40:03 GMT -->
-<!-- Added by HTTrack --><meta http-equiv="content-type" content="text/html;charset=UTF-8" /><!-- /Added by HTTrack -->
 <head>
 <meta charset="utf-8">
 <title>Syncing via a Temporary Link</title>
@@ -13,25 +10,22 @@
 <meta property="og:type" content="website" />
 <meta property="og:image" content="http://justnotepad.com/images/logo_og.png" />
 
+<link rel="shortcut icon" href="../favicon.ico" />
 
-<link rel="shortcut icon" href="http://justnotepad.com/favicon.ico" />
+<link rel="apple-touch-icon" href="../images/favicons/apple-touch-icon-60.png" />
+<link rel="apple-touch-icon" href="../images/favicons/apple-touch-icon-76.png" sizes="76x76" />
+<link rel="apple-touch-icon" href="../images/favicons/apple-touch-icon-120.png" sizes="120x120" />
+<link rel="apple-touch-icon" href="../images/favicons/apple-touch-icon-152.png" sizes="152x152" />
+<link rel="apple-touch-icon" href="../images/favicons/apple-touch-icon-180.png" sizes="180x180" />
 
-<link rel="apple-touch-icon" href="http://justnotepad.com/images/favicons/apple-touch-icon-60.png" />
-<link rel="apple-touch-icon" href="http://justnotepad.com/images/favicons/apple-touch-icon-76.png" sizes="76x76" />
-<link rel="apple-touch-icon" href="http://justnotepad.com/images/favicons/apple-touch-icon-120.png" sizes="120x120" />
-<link rel="apple-touch-icon" href="http://justnotepad.com/images/favicons/apple-touch-icon-152.png" sizes="152x152" />
-<link rel="apple-touch-icon" href="http://justnotepad.com/images/favicons/apple-touch-icon-180.png" sizes="180x180" />
+<link rel="icon" href="../images/favicons/favicon_16.png" type="image/png" />
+<link rel="icon" href="../images/favicons/favicon_32.png" type="image/png" sizes="32x32" />
+<link rel="icon" href="../images/favicons/favicon_16.png" type="image/png" sizes="16x16" />
 
-<link rel="icon" href="http://justnotepad.com/images/favicons/favicon_16.png" type="image/png" />
-<link rel="icon" href="http://justnotepad.com/images/favicons/favicon_32.png" type="image/png" sizes="32x32" />
-<link rel="icon" href="http://justnotepad.com/images/favicons/favicon_16.png" type="image/png" sizes="16x16" />
+<script>if(localStorage.getItem('theme')==='dark'||(localStorage.getItem('theme')!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}</script>
+<link rel="stylesheet" href="../styles/output.css" type="text/css" media="screen">
 
-<script>(function(){var t=localStorage.getItem('theme'),d=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;document.write('<link id="theme-css" rel="stylesheet" data-light="../styles/global.css" data-dark="../styles/night_mode.css" href="../styles/'+(t==='dark'||(t!=='light'&&d)?'night_mode':'global')+'.css" type="text/css" media="screen">')})()</script><noscript><link rel="stylesheet" href="../styles/global.css" type="text/css"></noscript>
-<!--[if lt IE 9]>
-		<script src="//cdnjs.cloudflare.com/ajax/libs/respond.js/1.4.2/respond.min.js"></script>
-		<![endif]-->
 <script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
-
 <script type="text/javascript">
 		if (!window.jQuery) {
 			document.write('<script type="text/javascript" src="http://justnotepad.com/js/jquery/1.9.1/jquery.min.js"><\/script>');
@@ -39,41 +33,52 @@
 		</script>
 <script type="text/javascript">
 		$(document).ready(function() {
-			// Validation of password: 
-			// https://api.jquery.com/submit/ 
+			// Validation of password:
+			// https://api.jquery.com/submit/
 			$("#password_form").submit(function(event) {
-				// If "password" value length is zero: 
+				// If "password" value length is zero:
 				if ($("#get_draft_via_temp_url #get_draft_password #password").val().length === 0) {
 					//$("#get_draft_via_temp_url #get_draft_status").html("<div class=\"error\">Password cannot be blank.</div>");
 					//$("#get_draft_via_temp_url #get_draft_status").show();
 					//return false;
-					// Stopping the form from submitting and refreshing the page... 
+					// Stopping the form from submitting and refreshing the page...
 					event.preventDefault();
 				} else if (!$("#get_draft_via_temp_url #get_draft_password #password").val().match(/^[A-Za-z0-9]{8,32}$/)) {
-					// Else, if incorrect password ("password" !does not match the regex): 
+					// Else, if incorrect password ("password" !does not match the regex):
 					$("#get_draft_via_temp_url #get_draft_status").html("<div class=\"error\">Incorrect password. Please try again.</div>");
 					$("#get_draft_via_temp_url #get_draft_status").show();
 					//return false;
-					// Stopping the form from submitting and refreshing the page... 
+					// Stopping the form from submitting and refreshing the page...
 					event.preventDefault();
 				} else {
 					return;
 				}
-				// Stopping the form from submitting and refreshing the page... 
+				// Stopping the form from submitting and refreshing the page...
 				event.preventDefault();
 			});
 		});
 		</script>
 </head>
-<body>
-<div id="get_draft_via_temp_url">
-<h1>Syncing via a&nbsp;Temporary Link</h1><div id="get_draft_desc">Please provide the correct password:</div><form method="post" action="#" id="password_form"><div id="get_draft_password"><input type="password" name="password" maxlength="32" value="" id="password" autocomplete="off" placeholder="Password" required /></div><div id="get_draft_button"><button name="ok" id="ok" type="submit">OK</button></div></form><div id="get_draft_status" style="display:none;"></div></div>
-<div id="footer">
-<div id="footer_menu"><a href="http://justnotepad.com/">Home</a> <a href="http://justnotepad.com/online-notepad.html">About</a> <a href="http://justnotepad.com/faq/">FAQ</a> <a href="http://justnotepad.com/terms/">Terms</a> <a href="http://justnotepad.com/feedback/">Feedback</a></div>
+<body class="m-0 font-sans text-black bg-white dark:text-white dark:bg-dark-bg">
+<div id="get_draft_via_temp_url" class="w-[90%] mx-auto my-[5%] text-center">
+<h1 class="m-0 py-5 text-[250%] font-normal">Syncing via a&nbsp;Temporary Link</h1>
+<div id="get_draft_desc" class="mb-5">Please provide the correct password:</div>
+<form method="post" action="#" id="password_form">
+<div id="get_draft_password" class="inline-block mr-5">
+<input type="password" name="password" maxlength="32" value="" id="password" autocomplete="off" placeholder="Password" required class="w-[150px] p-[5px] rounded-sm border-2 border-light-gray dark:border-dark-border2 hover:border-[#aaa] focus:border-[#aaa] bg-white dark:bg-dark-bg text-black dark:text-white outline-none" />
+</div>
+<div id="get_draft_button" class="inline-block">
+<button name="ok" id="ok" type="submit" class="px-3 py-[5px] border-2 border-light-gray dark:border-dark-border2 rounded bg-white dark:bg-dark-bg text-black dark:text-white cursor-pointer hover:border-[#aaa]">OK</button>
+</div>
+</form>
+<div id="get_draft_status" class="mt-5 hidden">
+<style>.error { color: #ff5050; }</style>
+</div>
+</div>
+<div id="footer" class="w-[90%] mx-auto mt-[50px] pb-[50px]">
+<div id="footer_menu" class="text-center"><a href="../index.html" class="mx-[2%] text-mid-gray underline hover:text-black dark:hover:text-white">Home</a> <a href="../online-notepad.html" class="mx-[2%] text-mid-gray underline hover:text-black dark:hover:text-white">About</a> <a href="../faq/index.html" class="mx-[2%] text-mid-gray underline hover:text-black dark:hover:text-white">FAQ</a> <a href="../terms/index.html" class="mx-[2%] text-mid-gray underline hover:text-black dark:hover:text-white">Terms</a></div>
 </div>
 
 <script src="../js/theme.js"></script>
 </body>
-
-<!-- Mirrored from justnotepad.com/get/abe786eedc0622a5047f59b20cd143be by HTTrack Website Copier/3.x [XR&CO'2014], Sat, 06 Aug 2022 18:40:03 GMT -->
 </html>

@@ -12,7 +12,6 @@
     <![endif]-->
 <link rel="canonical" href="online-notepad.html" />
 
-
 <link rel="shortcut icon" href="favicon.ico" />
 
 <link rel="apple-touch-icon" href="images/favicons/apple-touch-icon-60.png" />
@@ -25,19 +24,20 @@
 <link rel="icon" href="images/favicons/favicon_32.png" type="image/png" sizes="32x32" />
 <link rel="icon" href="images/favicons/favicon_16.png" type="image/png" sizes="16x16" />
 
-<script>(function(){var t=localStorage.getItem('theme'),d=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;document.write('<link id="theme-css" rel="stylesheet" data-light="styles/global.css" data-dark="styles/night_mode.css" href="styles/'+(t==='dark'||(t!=='light'&&d)?'night_mode':'global')+'.css" type="text/css" media="screen">')})()</script><noscript><link rel="stylesheet" href="styles/global.css" type="text/css"></noscript>
+<script>if(localStorage.getItem('theme')==='dark'||(localStorage.getItem('theme')!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}</script>
+<link rel="stylesheet" href="/styles/output.css" type="text/css" media="screen">
 </head>
-<body>
-<div id=”about”>
-<h1>Online notepad in a web browser</h1>
-<p><a href=”index.html”>JustNotepad.com</a> is a free <strong>online notepad</strong> in your web browser. Write any text notes — ideas, to-do&nbsp;lists, links, or any other text — directly in a web&nbsp;interface without installing anything.</p>
-<div id=”features”>
-<div class=”screenshot”>
-<div>
-<a href=”index.html” title=”online notepad”><img src=”images/screenshots/online-notepad.png” border=”0” alt=”online notepad” style=”width:100%; height:auto;” /></a>
+<body class="m-0 font-sans text-black bg-white dark:text-white dark:bg-dark-bg">
+<div id="about" class="w-[70%] mx-auto mt-[5%] xl:w-[90%]">
+<h1 class="text-[300%] font-normal">Online notepad in a web browser</h1>
+<p><a href="index.html" class="text-mid-gray underline hover:text-black dark:hover:text-white">JustNotepad.com</a> is a free <strong>online notepad</strong> in your web browser. Write any text notes — ideas, to-do&nbsp;lists, links, or any other text — directly in a web&nbsp;interface without installing anything.</p>
+<div id="features" class="table w-full">
+<div class="screenshot table-cell max-w-[450px] align-top">
+<div class="p-5 border border-[#efefef] dark:border-dark-border2 rounded-sm">
+<a href="index.html" title="online notepad"><img src="images/screenshots/online-notepad.png" border="0" alt="online notepad" style="width:100%; height:auto;" /></a>
 </div>
 </div>
-<div class=”text”>
+<div class="text table-cell pl-5 align-top xl:block xl:max-w-full">
 <p>– Works online in a web&nbsp;browser.</p>
 <p>– 100% Free online tool.</p>
 <p>– No login required, no sign&nbsp;up required.</p>
@@ -50,28 +50,28 @@
 <p>– Characters and words counter.</p>
 </div>
 </div>
-<h2>AutoSave</h2>
+<h2 class="mt-10 mb-[15px] text-[150%] font-normal">AutoSave</h2>
 <p>JustNotepad.com automatically saves your notes to your browser storage as you type. You can close the tab or browser and your notes will still be there when you come back.</p>
-<h2>Notes sidebar</h2>
+<h2 class="mt-10 mb-[15px] text-[150%] font-normal">Notes sidebar</h2>
 <p>JustNotepad.com lets you keep as many notes as you want, all accessible from the sidebar on the left.</p>
-<p>To create a new note, press the “<strong>+&nbsp;New</strong>” button at the top of the sidebar. A fresh empty note opens immediately in the editor.</p>
-<p><img src=”images/screenshots/new.png” border=”0” alt=”” style=”width:100%; max-width:180px; height:auto;” /></p>
+<p>To create a new note, press the "<strong>+&nbsp;New</strong>" button at the top of the sidebar. A fresh empty note opens immediately in the editor.</p>
+<p><img src="images/screenshots/new.png" border="0" alt="" style="width:100%; max-width:180px; height:auto;" /></p>
 <p>All your notes are listed in the sidebar. Click any note to switch to it instantly.</p>
-<p><img src=”images/screenshots/drafts_list.png” border=”0” alt=”” style=”width:100%; max-width:550px; height:auto;” /></p>
-<p>To delete a note, hover over it in the sidebar and press the “<strong>&times;</strong>” button.</p>
-<p><img src=”images/screenshots/delete.png” border=”0” alt=”” style=”width:100%; max-width:180px; height:auto;” /></p>
-<p>To delete all notes at once, press “<strong>Delete&nbsp;All</strong>” at the bottom of the sidebar.</p>
-<p><img src=”images/screenshots/delete_all_drafts.png” border=”0” alt=”” style=”width:100%; max-width:300px; height:auto;” /></p>
-<h2>Markdown editor</h2>
+<p><img src="images/screenshots/drafts_list.png" border="0" alt="" style="width:100%; max-width:550px; height:auto;" /></p>
+<p>To delete a note, hover over it in the sidebar and press the "<strong>&times;</strong>" button.</p>
+<p><img src="images/screenshots/delete.png" border="0" alt="" style="width:100%; max-width:180px; height:auto;" /></p>
+<p>To delete all notes at once, press "<strong>Delete&nbsp;All</strong>" at the bottom of the sidebar.</p>
+<p><img src="images/screenshots/delete_all_drafts.png" border="0" alt="" style="width:100%; max-width:300px; height:auto;" /></p>
+<h2 class="mt-10 mb-[15px] text-[150%] font-normal">Markdown editor</h2>
 <p>The editor supports <strong>Markdown</strong> formatting — headings, bold, italic, lists, links, code blocks, and more. Formatting is rendered live as you type.</p>
-<h2>Share &amp; Download</h2>
-<p>Press “<strong>Share on Telegraph</strong>” in the bottom bar to publish your note as a Telegraph page and get a shareable link. Press “<strong>&#8595;&nbsp;.md</strong>” to download your note as a Markdown file.</p>
-<h2>Characters and words counter</h2>
+<h2 class="mt-10 mb-[15px] text-[150%] font-normal">Share &amp; Download</h2>
+<p>Press "<strong>Share on Telegraph</strong>" in the bottom bar to publish your note as a Telegraph page and get a shareable link. Press "<strong>&#8595;&nbsp;.md</strong>" to download your note as a Markdown file.</p>
+<h2 class="mt-10 mb-[15px] text-[150%] font-normal">Characters and words counter</h2>
 <p>JustNotepad.com automatically counts characters and words as you type. The counter appears below the editor — click it to toggle between character count and word count.</p>
-<p><img src=”images/screenshots/count_characters_and_words.gif” border=”0” alt=”” style=”width:100%; max-width:230px; height:auto;” /></p>
+<p><img src="images/screenshots/count_characters_and_words.gif" border="0" alt="" style="width:100%; max-width:230px; height:auto;" /></p>
 </div>
-<div id="footer">
-<div id="footer_menu"><a href="index.html">Home</a> <span>About</span> <a href="faq/index.html">FAQ</a> <a href="terms/index.html">Terms</a></div>
+<div id="footer" class="w-[90%] mx-auto mt-[50px] pb-[50px]">
+<div id="footer_menu" class="text-center"><a href="index.html" class="mx-[2%] text-mid-gray underline hover:text-black dark:hover:text-white">Home</a> <span class="mx-[2%]">About</span> <a href="faq/index.html" class="mx-[2%] text-mid-gray underline hover:text-black dark:hover:text-white">FAQ</a> <a href="terms/index.html" class="mx-[2%] text-mid-gray underline hover:text-black dark:hover:text-white">Terms</a></div>
 </div>
 
 <script src="js/theme.js"></script>

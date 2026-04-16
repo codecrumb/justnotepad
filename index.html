@@ -30,54 +30,11 @@
 <link rel="icon" href="images/favicons/favicon_32.png" type="image/png" sizes="32x32" />
 <link rel="icon" href="images/favicons/favicon_16.png" type="image/png" sizes="16x16" />
 
-<script>(function(){var t=localStorage.getItem('theme'),d=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;document.write('<link id="theme-css" rel="stylesheet" data-light="styles/global.css" data-dark="styles/night_mode.css" href="styles/'+(t==='dark'||(t!=='light'&&d)?'night_mode':'global')+'.css" type="text/css" media="screen">')})()</script><noscript><link rel="stylesheet" href="styles/global.css" type="text/css" media="screen"></noscript>
+<script>if(localStorage.getItem('theme')==='dark'||(localStorage.getItem('theme')!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}</script>
+<link rel="stylesheet" href="/styles/output.css" type="text/css" media="screen">
 <link rel="stylesheet" href="styles/print.css" type="text/css" media="print" />
-<link rel="prefetch" href="styles/night_mode.css" as="style" />
 <link rel="prefetch" href="images/logo_w.png" as="image" />
 <style>
-#sync-indicator{cursor:pointer;font-size:18px;padding:3px 6px;border-radius:4px;display:none;line-height:1;user-select:none;}
-#sync-indicator.sync-ok{color:#34c759;}
-#sync-indicator.sync-error{color:#ff3b30;}
-#sync-indicator.sync-spinning{display:inline-block;animation:sync-spin 1s linear infinite;}
-@keyframes sync-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-#gist-pat-input{width:100%;box-sizing:border-box;padding:7px 10px;border-radius:8px;border:1px solid #ddd;font-size:13px;margin-bottom:8px;background:#fff;color:#000;}
-.gist-sync-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-#gist-connect-status{font-size:12px;margin-top:6px;color:#858585;}
-#sync-toast{position:fixed;bottom:54px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.72);color:#fff;padding:7px 16px;border-radius:20px;font-size:13px;z-index:19999;display:none;white-space:nowrap;pointer-events:none;}
-#trash-icon{cursor:pointer;font-size:15px;color:#858585;user-select:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;position:relative;flex-shrink:0;}
-#trash-icon:hover{color:#000;background:#e8e8e8;}
-#trash-badge{position:absolute;top:2px;right:1px;background:#aaa;color:#fff;border-radius:8px;font-size:9px;padding:0 3px;min-width:12px;text-align:center;line-height:13px;display:none;}
-#trash-panel{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10001;overflow-y:auto;display:flex;flex-direction:column;}
-#trash-panel-header{display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid #ececec;flex-shrink:0;position:relative;}
-#trash-panel-close{background:none;border:none;cursor:pointer;font-size:13px;font-family:inherit;padding:5px 10px;border-radius:5px;line-height:1;}
-#trash-panel-title{position:absolute;left:50%;transform:translateX(-50%);font-size:14px;font-weight:600;pointer-events:none;}
-#trash-panel-body{max-width:560px;width:100%;margin:0 auto;padding:20px;flex:1;}
-.trash-item{display:flex;align-items:center;padding:10px 12px;border-radius:8px;margin-bottom:6px;gap:8px;}
-.trash-item-info{flex:1;min-width:0;}
-.trash-item-preview{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.trash-item-date{font-size:11px;color:#aaa;margin-top:2px;}
-.trash-item-restore,.trash-item-delete{cursor:pointer;padding:5px 8px;border-radius:6px;font-size:14px;flex-shrink:0;line-height:1;}
-.trash-item-restore:hover{background:rgba(52,199,89,0.15);color:#34c759;}
-.trash-item-delete:hover{background:rgba(255,59,48,0.12);color:#ff3b30;}
-#trash-empty-state{text-align:center;padding:60px 20px;color:#aaa;font-size:14px;}
-#trash-retention{padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:13px;background:#fff;color:#000;cursor:pointer;}
-#pat-share-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:20000;display:flex;align-items:center;justify-content:center;}
-#pat-share-box{background:#fff;border-radius:14px;padding:24px;max-width:320px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.18);text-align:center;position:relative;}
-#pat-share-box h3{margin:0 0 6px;font-size:16px;font-weight:600;}
-#pat-share-box p{margin:0 0 14px;font-size:12px;color:#888;line-height:1.5;}
-#pat-share-url-row{display:flex;gap:6px;margin-bottom:14px;}
-#pat-share-url{flex:1;font-size:11px;padding:6px 8px;border:1px solid #ddd;border-radius:7px;background:#f7f7f7;color:#555;min-width:0;}
-#pat-share-copy{flex-shrink:0;padding:6px 12px;border:none;border-radius:7px;background:#111;color:#fff;cursor:pointer;font-size:12px;font-family:inherit;}
-#pat-share-copy:hover{background:#333;}
-#pat-share-qr{margin:0 auto 14px;width:180px;height:180px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:12px;}
-#pat-share-qr img{width:180px;height:180px;}
-#pat-share-close{background:none;border:none;cursor:pointer;font-size:13px;color:#555;font-family:inherit;padding:5px 14px;border-radius:7px;}
-#pat-share-close:hover{background:#f0f0f0;}
-#pat-share-warn{font-size:11px;color:#ff9500;margin-bottom:14px;}
-#sidebar.collapsed #sidebar-theme #style_mode,#sidebar.collapsed #trash-icon{display:none;}
-#sidebar.collapsed:not(.just-collapsed):hover #sidebar-theme #style_mode{display:flex;}
-#sidebar.collapsed:not(.just-collapsed):hover #trash-icon{display:inline-flex;}
-@media screen and (max-width:700px){#sidebar:not(.open) #sidebar-theme #style_mode,#sidebar:not(.open) #trash-icon{display:none;}}
 .sidebar-tab.temp-note{border-left-color:#aaa;border-left-style:dashed;}
 .sidebar-tab.temp-note.active{border-left-color:#555;}
 </style>
@@ -1616,58 +1573,62 @@ window.GistSync = (function() {
     });
     </script>
 </head>
-<body>
-<div id="app-layout">
-<div id="sidebar">
-<div id="sidebar-header"><span id="sidebar-toggle" title="Toggle sidebar">&#9776;</span></div>
-<div id="sidebar-new-btn"><span class="new-icon">+</span><span class="new-label">&nbsp;New</span></div>
-<div id="sidebar-tabs-list"></div>
-<div id="sidebar-theme"><div id="style_mode"><span id="auto_mode"></span><span id="light_mode" style="display:none;"></span><span id="dark_mode" style="display:none;"></span></div><span id="sync-indicator" title="Synced &mdash; click to sync now">&#8635;</span><span id="trash-icon" title="Trash">&#128465;<span id="trash-badge"></span></span><span id="settings-gear" title="Settings">&#9881;</span></div>
+<body class="m-0 font-sans text-black bg-white dark:text-white dark:bg-dark-bg">
+<div id="app-layout" class="flex items-stretch h-screen overflow-hidden">
+<div id="sidebar" class="w-[210px] min-w-[210px] border-r border-[#e0e0e0] dark:border-dark-border flex flex-col bg-off-white dark:bg-dark-surface flex-shrink-0 transition-[width,min-width] duration-200">
+<div id="sidebar-header" class="px-3 py-[10px] border-b border-[#e0e0e0] dark:border-dark-border flex-shrink-0 flex items-center"><span id="sidebar-toggle" class="text-[16px] cursor-pointer text-mid-gray select-none block hover:text-black dark:hover:text-white" title="Toggle sidebar">&#9776;</span><span id="settings-gear" class="ml-auto text-[18px] cursor-pointer text-mid-gray select-none inline-flex items-center justify-center w-7 h-7 rounded hover:text-black dark:hover:text-white hover:bg-[#e8e8e8] dark:hover:bg-dark-surface2" title="Settings">&#9881;</span></div>
+<div id="sidebar-new-btn" class="px-[14px] py-[10px] cursor-pointer text-[#555] dark:text-[#aaa] text-[90%] border-b border-[#e0e0e0] dark:border-dark-border whitespace-nowrap overflow-hidden flex-shrink-0 hover:bg-hover-gray dark:hover:bg-dark-surface2 hover:text-black dark:hover:text-white"><span class="new-icon">+</span><span class="new-label">&nbsp;New</span></div>
+<div id="sidebar-tabs-list" class="flex-1 overflow-y-auto"></div>
+<div id="sidebar-theme" class="px-3 py-2 justify-start mt-auto border-t border-[#e0e0e0] dark:border-dark-border flex-shrink-0 flex items-center"><div id="style_mode" class="flex items-center"><span id="auto_mode" class="w-5 h-5 block cursor-pointer bg-none text-[16px] leading-5 text-center text-mid-gray hover:text-black dark:hover:text-white"></span><span id="light_mode" class="w-5 h-5 block cursor-pointer" style="display:none;"></span><span id="dark_mode" class="w-5 h-5 block cursor-pointer" style="display:none;"></span></div><span id="sync-indicator" class="cursor-pointer text-[18px] px-[6px] py-[3px] rounded hidden leading-none select-none" title="Synced &mdash; click to sync now">&#8635;</span><span id="trash-icon" class="cursor-pointer text-[15px] text-mid-gray select-none inline-flex items-center justify-center w-7 h-7 rounded relative flex-shrink-0 hover:text-black dark:hover:text-white hover:bg-hover-gray dark:hover:bg-dark-surface2" title="Trash">&#128465;<span id="trash-badge" class="absolute top-[2px] right-[1px] bg-[#aaa] text-white rounded-lg text-[9px] px-[3px] min-w-[12px] text-center leading-[13px] hidden"></span></span></div>
+<div id="sidebar-bottom" class="border-t border-[#e0e0e0] dark:border-dark-border px-3 py-[10px] flex-shrink-0">
+<span id="delete_all_drafts" class="inline-block px-2 py-1 border border-dashed border-light-gray dark:border-dark-border2 rounded text-mid-gray text-[75%] cursor-pointer whitespace-nowrap hover:text-white hover:border-delete-red hover:bg-delete-red">Delete All</span>
 </div>
-<div id="main-content">
-<div id="editable_text_box">
+</div>
+<div id="main-content" class="flex-1 min-w-0 flex flex-col overflow-y-auto">
+<div id="editable_text_box" class="w-full m-0">
 <div id="editable_text"></div>
 </div>
 <div id="printable_text" style="display:none;"></div>
-<div id="limit_notice" style="display:none;"><div></div></div>
-<div id="bottom-bar">
-<div id="create_temp_url" style="display:none;">
-<span id="temp_url_nav">Share on Telegraph</span>
-<div id="temp_url_box" style="display:none;">
+<div id="limit_notice" class="w-[90%] mx-auto mt-5" style="display:none;"><div class="p-[10px] text-white bg-delete-red dark:text-black"></div></div>
+<div id="bottom-bar" class="sticky bottom-0 bg-white dark:bg-dark-bg border-t border-[#ececec] dark:border-[#1a1a1a] flex items-center flex-wrap gap-x-4 gap-y-1 w-[90%] mx-auto my-[4px_auto_6px] flex-shrink-0 z-10 transition-transform duration-[220ms] ease-[ease]">
+<div id="create_temp_url" class="w-auto m-0 relative flex-shrink-0" style="display:none;">
+<span id="temp_url_nav" class="text-mid-gray border-b border-dotted border-mid-gray cursor-pointer hover:text-black dark:hover:text-white hover:border-black dark:hover:border-white">Share on Telegraph</span>
+<div id="temp_url_box" class="absolute bottom-[calc(100%+6px)] left-0 bg-white dark:bg-dark-surface2 border border-light-gray dark:border-dark-border2 rounded px-[15px] py-3 min-w-[300px] shadow-[0_-4px_12px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.4)] z-[100]" style="display:none;">
 <div id="temp_url_result" style="display:none;"></div>
-<div id="temp_url_buttons"><div class="temp_url_button"><button id="create_url" type="button">Share</button></div><div class="temp_url_button"><button id="cancel_url" type="button">Cancel</button></div></div>
-<div id="another_temp_url" style="display:none;"><button id="create_another_url" type="button">Share Again</button></div>
-<div id="telegraph_advanced"><span id="show_token_field">Use your own Telegraph token</span><div id="telegraph_token_field" style="display:none;"><input type="text" id="telegraph_token" placeholder="Paste your Telegraph access_token" autocomplete="off" /></div></div>
+<div id="temp_url_buttons"><div class="temp_url_button"><button id="create_url" class="px-3 py-[5px] border-2 border-light-gray dark:border-dark-border2 rounded bg-white dark:bg-dark-bg text-black dark:text-white cursor-pointer hover:border-[#aaa]" type="button">Share</button></div><div class="temp_url_button"><button id="cancel_url" class="px-3 py-[5px] border-2 border-light-gray dark:border-dark-border2 rounded bg-white dark:bg-dark-bg text-black dark:text-white cursor-pointer hover:border-[#aaa]" type="button">Cancel</button></div></div>
+<div id="another_temp_url" style="display:none;"><button id="create_another_url" class="px-3 py-[5px] border-2 border-light-gray dark:border-dark-border2 rounded bg-white dark:bg-dark-bg text-black dark:text-white cursor-pointer hover:border-[#aaa]" type="button">Share Again</button></div>
+<div id="telegraph_advanced" class="mt-[15px] text-[80%] text-mid-gray"><span id="show_token_field" class="border-b border-dotted border-mid-gray cursor-pointer hover:text-black dark:hover:text-white hover:border-black dark:hover:border-white">Use your own Telegraph token</span><div id="telegraph_token_field" style="display:none;"><input type="text" id="telegraph_token" class="w-full max-w-[420px] p-[5px] rounded-sm border border-light-gray dark:border-dark-border2 bg-white dark:bg-dark-bg text-mid-gray focus:border-[#aaa] focus:outline-none mt-2" placeholder="Paste your Telegraph access_token" autocomplete="off" /></div></div>
 </div>
 </div>
-<div id="download_note" style="display:none;"><span id="download_md">&#8595; .md</span></div>
-<div id="count_line">
-<div id="count" style="display:none;">
-<span id="count_chars"></span>
-<span id="count_words" style="display:none;"></span>
+<div id="download_note" class="w-auto m-0 flex-shrink-0" style="display:none;"><span id="download_md" class="text-mid-gray border-b border-dotted border-mid-gray cursor-pointer mr-[15px] text-[90%] hover:text-black dark:hover:text-white hover:border-black dark:hover:border-white">&#8595; .md</span></div>
+<div id="count_line" class="w-auto m-0 flex-shrink-0">
+<div id="count" class="inline-flex gap-2 m-0 float-none" style="display:none;">
+<span id="count_chars" class="border-b border-dotted border-mid-gray text-mid-gray cursor-pointer hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white"></span>
+<span id="count_words" class="border-b border-dotted border-mid-gray text-mid-gray cursor-pointer hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white" style="display:none;"></span>
 </div>
 </div>
-<div id="status_text_by_default">Your text will be saved in your browser storage as draft automatically.</div>
-<div id="status_text" style="display:none;"></div>
+<div id="status_text_by_default" class="w-auto m-0 text-mid-gray flex-shrink">Your text will be saved in your browser storage as draft automatically.</div>
+<div id="status_text" class="w-auto m-0 text-mid-gray flex-shrink" style="display:none;"></div>
 </div>
 </div></div>
-<div id="sel-toolbar" style="display:none;"><button class="sel-btn" data-fmt="bold"><b>B</b></button><button class="sel-btn" data-fmt="italic"><i>I</i></button><button class="sel-btn" data-fmt="strikethrough"><s>S</s></button><button class="sel-btn" data-fmt="code"><code>{ }</code></button></div>
-<div id="note-ctx-menu" style="display:none;"><div class="ctx-item" id="ctx-pin-note">Pin</div><div class="ctx-item" id="ctx-mark-temp">Mark as temporary</div><div class="ctx-separator"></div><div class="ctx-item ctx-danger" id="ctx-delete-note">Delete</div></div>
-<div id="sync-toast"></div>
-<div id="pat-share-overlay" style="display:none;">
-<div id="pat-share-box">
-<h3>Add to another device</h3>
-<p>Open this link on your other device to connect instantly. Don't share it with anyone else — it contains your GitHub PAT.</p>
-<div id="pat-share-url-row"><input id="pat-share-url" readonly><button id="pat-share-copy">Copy</button></div>
-<div id="pat-share-qr">Generating QR&hellip;</div>
-<button id="pat-share-close">Close</button>
+<div id="sel-toolbar" class="fixed z-[9500] bg-[#111] dark:bg-[#e8e8e8] rounded-[7px] p-[3px] flex gap-[1px] shadow-[0_3px_12px_rgba(0,0,0,0.25)] dark:shadow-[0_3px_12px_rgba(0,0,0,0.5)]" style="display:none;"><button class="sel-btn" data-fmt="bold"><b>B</b></button><button class="sel-btn" data-fmt="italic"><i>I</i></button><button class="sel-btn" data-fmt="strikethrough"><s>S</s></button><button class="sel-btn" data-fmt="code"><code>{ }</code></button></div>
+<div id="note-ctx-menu" class="fixed z-[20000] bg-white dark:bg-dark-surface3 border border-[#e0e0e0] dark:border-[#333] rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)] p-1 min-w-[160px] select-none" style="display:none;"><div class="ctx-item" id="ctx-pin-note">Pin</div><div class="ctx-item" id="ctx-mark-temp">Mark as temporary</div><div class="ctx-separator"></div><div class="ctx-item ctx-danger" id="ctx-delete-note">Delete</div></div>
+<div id="sync-toast" class="fixed bottom-[54px] left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-[7px] rounded-[20px] text-[13px] z-[19999] hidden whitespace-nowrap pointer-events-none"></div>
+<div id="pat-share-overlay" class="fixed top-0 left-0 w-full h-full bg-black/45 z-[20000] flex items-center justify-center" style="display:none;">
+<div id="pat-share-box" class="bg-white dark:bg-dark-surface3 rounded-[14px] p-6 max-w-[320px] w-[90%] shadow-[0_8px_32px_rgba(0,0,0,0.18)] text-center relative">
+<h3 class="m-0 mb-[6px] text-[16px] font-semibold text-black dark:text-white">Add to another device</h3>
+<p class="m-0 mb-[14px] text-[12px] text-[#888] dark:text-[#666] leading-[1.5]">Open this link on your other device to connect instantly. Don't share it with anyone else — it contains your GitHub PAT.</p>
+<div id="pat-share-url-row" class="flex gap-[6px] mb-[14px]"><input id="pat-share-url" class="flex-1 text-[11px] px-2 py-[6px] border border-[#ddd] dark:border-dark-border2 rounded-[7px] bg-[#f7f7f7] dark:bg-dark-bg text-[#555] dark:text-[#aaa] min-w-0" readonly><button id="pat-share-copy" class="flex-shrink-0 px-3 py-[6px] border-none rounded-[7px] bg-[#111] dark:bg-white text-white dark:text-[#111] cursor-pointer text-[12px] font-[inherit] hover:bg-[#333] dark:hover:bg-[#ddd]">Copy</button></div>
+<div id="pat-share-qr" class="mx-auto mb-[14px] w-[180px] h-[180px] flex items-center justify-content text-[#aaa] text-[12px]">Generating QR&hellip;</div>
+<div id="pat-share-warn" class="text-[11px] text-[#ff9500] mb-[14px]"></div>
+<button id="pat-share-close" class="bg-none border-none cursor-pointer text-[13px] text-[#555] dark:text-[#aaa] font-[inherit] px-[14px] py-[5px] rounded-[7px] hover:bg-hover-gray dark:hover:bg-dark-surface2">Close</button>
 </div>
 </div>
-<div id="confirm_layer" style="display:none;"></div>
-<div id="confirm_lightbox" style="display:none;"></div>
-<div id="settings-page" style="display:none;">
-<div id="settings-page-header"><button id="settings-close">&#8592; Back</button><span id="settings-title">Settings</span></div>
-<div id="settings-page-body">
+<div id="confirm_layer" class="w-full h-full top-0 left-0 fixed z-[10002]" style="display:none;"></div>
+<div id="confirm_lightbox" class="w-1/2 min-w-[150px] top-1/4 left-1/4 right-1/4 fixed z-[10003] text-black dark:text-white bg-white dark:bg-dark-bg rounded-[10px] shadow-[0_25px_50px_rgba(44,47,23,0.5)]" style="display:none;"></div>
+<div id="settings-page" class="fixed top-0 left-0 w-full h-full z-[10001] bg-white dark:bg-dark-surface text-black dark:text-white overflow-y-auto flex flex-col" style="display:none;">
+<div id="settings-page-header" class="flex items-center px-5 py-[14px] border-b border-[#ececec] dark:border-dark-border flex-shrink-0 relative"><button id="settings-close" class="bg-none border-none cursor-pointer text-[#555] dark:text-[#aaa] text-[13px] font-[inherit] px-[10px] py-[5px] rounded-[5px] leading-none hover:bg-hover-gray dark:hover:bg-dark-surface2 hover:text-black dark:hover:text-white">&#8592; Back</button><span id="settings-title" class="absolute left-1/2 -translate-x-1/2 text-[14px] font-semibold text-[#111] dark:text-white pointer-events-none">Settings</span></div>
+<div id="settings-page-body" class="max-w-[560px] w-full mx-auto px-5 py-7 flex-1">
 <div class="settings-section">
 <div class="settings-section-label">Editor</div>
 <div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Auto-hide toolbar</div><div class="settings-card-desc">Bottom bar hides when scrolling down, reappears on scroll up</div></div><button id="toggle-bar-autohide">On</button></div>
@@ -1676,21 +1637,21 @@ window.GistSync = (function() {
 <div class="settings-section-label">Backup</div>
 <div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Export all notes</div><div class="settings-card-desc">Download a .json backup of all your notes</div></div><button id="export-notes">Export</button></div>
 <div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Import notes</div><div class="settings-card-desc">Merge notes from a backup file — won't delete existing notes</div></div><button id="import-notes-btn">Import</button><input type="file" id="import-notes-input" accept=".json" style="display:none;"></div>
-<div id="import-status"></div>
+<div id="import-status" class="text-[13px] text-[#555] dark:text-[#aaa] p-[2px] min-h-[20px]"></div>
 </div>
 <div class="settings-section">
 <div class="settings-section-label">Sync</div>
 <div class="settings-card" id="gist-sync-card">
 <div class="settings-card-info"><div class="settings-card-name">GitHub Gist Sync</div><div class="settings-card-desc">Sync notes across devices using a private GitHub Gist. Paste the same PAT on each device &mdash; no extra setup needed. Requires a GitHub PAT with <code>gist</code> scope.</div></div>
-<div id="gist-not-connected"><input id="gist-pat-input" type="password" placeholder="Paste GitHub PAT (gist scope)&hellip;" autocomplete="off"><div class="gist-sync-actions"><button id="gist-connect-btn">Connect</button></div></div>
+<div id="gist-not-connected"><input id="gist-pat-input" class="w-full box-border px-[10px] py-[7px] rounded-lg border border-[#ddd] dark:border-dark-border2 text-[13px] mb-2 bg-white dark:bg-dark-bg text-black dark:text-white" type="password" placeholder="Paste GitHub PAT (gist scope)&hellip;" autocomplete="off"><div class="gist-sync-actions"><button id="gist-connect-btn">Connect</button></div></div>
 <div id="gist-connected" style="display:none;"><div class="gist-sync-actions"><button id="gist-sync-now-btn">Sync now</button><button id="gist-share-device-btn">Add to another device</button><button id="gist-disconnect-btn" class="settings-btn-danger">Disconnect</button></div></div>
-<div id="gist-connect-status"></div>
+<div id="gist-connect-status" class="text-[12px] mt-[6px] text-mid-gray"></div>
 </div>
 <div class="settings-card" id="gist-toast-card" style="display:none;"><div class="settings-card-info"><div class="settings-card-name">Sync notifications</div><div class="settings-card-desc">Show a brief toast when notes are pulled from another device</div></div><button id="toggle-gist-toast">On</button></div>
 </div>
 <div class="settings-section">
 <div class="settings-section-label">Trash</div>
-<div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Retention period</div><div class="settings-card-desc">How long to keep trashed notes before permanently deleting them</div></div><select id="trash-retention"><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option><option value="60">60 days</option><option value="0">Forever</option></select></div>
+<div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Retention period</div><div class="settings-card-desc">How long to keep trashed notes before permanently deleting them</div></div><select id="trash-retention" class="px-2 py-1 rounded-md border border-[#ddd] dark:border-dark-border2 text-[13px] bg-white dark:bg-dark-surface3 text-black dark:text-white cursor-pointer"><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option><option value="60">60 days</option><option value="0">Forever</option></select></div>
 <div class="settings-card"><div class="settings-card-info"><div class="settings-card-name">Empty Trash</div><div class="settings-card-desc">Permanently delete all trashed notes right now</div></div><button id="settings-empty-trash" class="settings-btn-danger">Empty</button></div>
 </div>
 <div class="settings-section">
@@ -1701,9 +1662,9 @@ window.GistSync = (function() {
 </div>
 </div>
 
-<div id="trash-panel" style="display:none;">
-<div id="trash-panel-header"><button id="trash-panel-close">&#8592; Back</button><span id="trash-panel-title">Trash</span><button id="trash-panel-empty-btn" class="settings-btn-danger" style="display:none;margin-left:auto;">Empty</button></div>
-<div id="trash-panel-body"><div id="trash-panel-list"></div></div>
+<div id="trash-panel" class="fixed top-0 left-0 w-full h-full z-[10001] overflow-y-auto flex flex-col bg-white dark:bg-dark-surface text-black dark:text-white" style="display:none;">
+<div id="trash-panel-header" class="flex items-center px-5 py-[14px] border-b border-[#ececec] dark:border-dark-border flex-shrink-0 relative"><button id="trash-panel-close" class="bg-none border-none cursor-pointer text-[13px] font-[inherit] px-[10px] py-[5px] rounded-[5px] leading-none text-[#555] dark:text-[#aaa] hover:bg-hover-gray dark:hover:bg-dark-surface2 hover:text-black dark:hover:text-white">&#8592; Back</button><span id="trash-panel-title" class="absolute left-1/2 -translate-x-1/2 text-[14px] font-semibold pointer-events-none text-[#111] dark:text-white">Trash</span><button id="trash-panel-empty-btn" class="settings-btn-danger" style="display:none;margin-left:auto;">Empty</button></div>
+<div id="trash-panel-body" class="max-w-[560px] w-full mx-auto p-5 flex-1"><div id="trash-panel-list"></div></div>
 </div>
 <script src="js/theme.js"></script>
 </body>
