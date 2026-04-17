@@ -746,7 +746,7 @@ $(document).ready(function() {
     $('#export-notes').click(async function() {
         var allDrafts;
         try { allDrafts = await NoteDB.getAll(); } catch(e) { return; }
-        var backup = { version: 1, exported: Date.now(), notes: allDrafts, pinned: JSON.parse(localStorage.getItem('pinned_notes') || '[]') };
+        var backup = { version: 1, exported: Date.now(), notes: allDrafts, pinned: JSON.parse(localStorage.getItem('pinned_notes') || '[]'), trash_retention: localStorage.getItem('trash_retention') || '30' };
         var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
@@ -771,6 +771,10 @@ $(document).ready(function() {
                     var existing = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
                     var merged = existing.concat(data.pinned.filter(function(id) { return existing.indexOf(id) === -1; }));
                     localStorage.setItem('pinned_notes', JSON.stringify(merged));
+                }
+                if (data.trash_retention !== undefined) {
+                    localStorage.setItem('trash_retention', String(data.trash_retention));
+                    $('#trash-retention').val(String(data.trash_retention));
                 }
                 list_of_drafts();
                 $('#import-status').text('Imported ' + data.notes.length + ' note(s).');
@@ -815,7 +819,7 @@ $(document).ready(function() {
         $('#gist-connect-btn').prop('disabled', false).text('Connect');
     }
     function exportBackupNow(allDrafts) {
-        var backup = { version: 1, exported: Date.now(), notes: allDrafts, pinned: JSON.parse(localStorage.getItem('pinned_notes') || '[]') };
+        var backup = { version: 1, exported: Date.now(), notes: allDrafts, pinned: JSON.parse(localStorage.getItem('pinned_notes') || '[]'), trash_retention: localStorage.getItem('trash_retention') || '30' };
         var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
