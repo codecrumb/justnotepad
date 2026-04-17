@@ -31,40 +31,28 @@
 
 /* Items that can't be expressed as utility classes */
 
-/* Image sprite for style mode buttons */
+/* Style mode buttons */
 #style_mode #auto_mode::after { content: "◑"; }
 
-#style_mode #light_mode,
-#sidebar-header #style_mode #light_mode,
-#sidebar-theme #style_mode #light_mode {
-  background: url(../images/style_mode.png) -20px 0 no-repeat;
-  filter: invert(1);
+/* Floating style_mode (non-sidebar pages) — sizing and color */
+#style_mode.floating #auto_mode,
+#style_mode.floating #light_mode,
+#style_mode.floating #dark_mode {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #858585;
 }
-#style_mode #light_mode:hover,
-#sidebar-header #style_mode #light_mode:hover,
-#sidebar-theme #style_mode #light_mode:hover {
-  background-position: -20px -20px;
-}
-#style_mode #dark_mode,
-#sidebar-header #style_mode #dark_mode,
-#sidebar-theme #style_mode #dark_mode {
-  background: url(../images/style_mode.png) 0 0 no-repeat;
-}
-#style_mode #dark_mode:hover,
-#sidebar-header #style_mode #dark_mode:hover,
-#sidebar-theme #style_mode #dark_mode:hover {
-  background-position: 0 -20px;
-}
-.dark #style_mode #dark_mode,
-.dark #sidebar-header #style_mode #dark_mode,
-.dark #sidebar-theme #style_mode #dark_mode {
-  filter: invert(1);
-}
-.dark #style_mode #light_mode,
-.dark #sidebar-header #style_mode #light_mode,
-.dark #sidebar-theme #style_mode #light_mode {
-  filter: none;
-}
+#style_mode.floating #auto_mode { font-size: 16px; }
+#style_mode.floating #auto_mode:hover,
+#style_mode.floating #light_mode:hover,
+#style_mode.floating #dark_mode:hover { color: #000; }
+.dark #style_mode.floating #auto_mode:hover,
+.dark #style_mode.floating #light_mode:hover,
+.dark #style_mode.floating #dark_mode:hover { color: #fff; }
 
 /* Preloader button */
 .preloader_button {
