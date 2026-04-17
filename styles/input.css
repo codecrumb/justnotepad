@@ -207,10 +207,9 @@
   .sidebar-tab .tab-delete { display: block; }
 }
 
-@media (max-width: 500px) {
-  #gist-sync-card { flex-direction: column; align-items: flex-start; }
-  #gist-connected, #gist-not-connected { width: 100%; }
-}
+/* Gist sync card always stacks vertically — too much content for a row */
+#gist-sync-card { flex-direction: column; align-items: flex-start; }
+#gist-connected, #gist-not-connected { width: 100%; }
 
 /* Component classes for JS-generated elements */
 @layer components {
