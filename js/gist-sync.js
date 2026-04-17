@@ -78,7 +78,9 @@ window.GistSync = (function() {
                 var d = allDrafts[i];
                 if (d.trashed) continue; // trashed → tombstone, not active note
                 files['note-' + d.id + '.md'] = { content: d.value || ' ' };
-                mergedNotes[d.id] = { id: d.id, timestamp: d.timestamp };
+                var noteEntry = { id: d.id, timestamp: d.timestamp };
+                if (d.name) noteEntry.name = d.name;
+                mergedNotes[d.id] = noteEntry;
             }
 
             // Merge pinned arrays
@@ -124,7 +126,9 @@ window.GistSync = (function() {
                 var local = localMap[mn.id];
                 if (local && local.trashed) continue; // locally trashed — don't overwrite with remote active
                 if (!local || remoteTs > local.timestamp) {
-                    await NoteDB.put({ id: mn.id, timestamp: remoteTs, value: remoteContent });
+                    var putObj = { id: mn.id, timestamp: remoteTs, value: remoteContent };
+                    if (mn.name) putObj.name = mn.name;
+                    await NoteDB.put(putObj);
                     changedCount++;
                     document.dispatchEvent(new CustomEvent('gistsync:note-updated', { detail: { id: mn.id, value: remoteContent, timestamp: remoteTs } }));
                 }

@@ -312,11 +312,18 @@ $(document).ready(function() {
 
     //-----------------------------------------------------------------------------------------------
     // Download note as .md or .txt:
-    function download_note(ext) {
+    async function download_note(ext) {
         var content = inkEditor ? inkEditor.getDoc() : '';
         if (!content) return;
-        var firstLine = content.split('\n')[0].replace(/^#+\s*/, '').trim().slice(0, 60);
-        var filename = (firstLine || 'note').replace(/[^a-zA-Z0-9 \-_]/g, '').trim().replace(/\s+/g, '_') || 'note';
+        var rawName;
+        try {
+            var allD = await NoteDB.getAll();
+            var cur = allD.find(function(d) { return d.id === draft_id; });
+            rawName = (cur && cur.name) || content.split('\n')[0].replace(/^#+\s*/, '').trim().slice(0, 60);
+        } catch(e) {
+            rawName = content.split('\n')[0].replace(/^#+\s*/, '').trim().slice(0, 60);
+        }
+        var filename = (rawName || 'note').replace(/[^a-zA-Z0-9 \-_]/g, '').trim().replace(/\s+/g, '_') || 'note';
         var blob = new Blob([content], { type: 'text/plain' });
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
