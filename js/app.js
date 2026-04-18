@@ -188,6 +188,75 @@ $(document).ready(function() {
             }
         });
         window.inkEditor = inkEditor;
+        // Obsidian-style live preview: hide syntax markers (**, #, _, etc.) on non-cursor lines.
+        // ink-mde doesn't include highlightActiveLine so we track the active line ourselves.
+        // We find the dynamically generated CSS class for processing instructions at runtime
+        // by scanning injected stylesheets, then toggle .ink-active-line on the cursor's line.
+        (function applyMarkdownPreview() {
+            var processingCls = null;
+            for (var i = 0; i < document.styleSheets.length; i++) {
+                try {
+                    var rules = document.styleSheets[i].cssRules;
+                    for (var j = 0; j < rules.length; j++) {
+                        var rule = rules[j];
+                        if (rule.selectorText &&
+                            rule.selectorText.charAt(0) === '.' &&
+                            rule.selectorText.indexOf(' ') === -1 &&
+                            rule.style && rule.style.length === 1 &&
+                            rule.cssText.indexOf('--ink-internal-syntax-processing-instruction-color') !== -1) {
+                            processingCls = rule.selectorText;
+                            break;
+                        }
+                    }
+                } catch(e) { /* cross-origin sheets */ }
+                if (processingCls) break;
+            }
+            if (!processingCls) return;
+
+            var s = document.createElement('style');
+            s.id = 'ink-md-preview';
+            s.textContent = '#editable_text_box .cm-line:not(.ink-active-line) ' + processingCls + ' { display: none; }';
+            document.head.appendChild(s);
+
+            var editorEl = document.getElementById('editable_text');
+
+            function updateActiveLine() {
+                var lines = editorEl.querySelectorAll('.cm-line');
+                for (var k = 0; k < lines.length; k++) lines[k].classList.remove('ink-active-line');
+
+                // Primary: use window.getSelection() to find which .cm-line the cursor is in
+                var sel = window.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                    var anchor = sel.anchorNode;
+                    if (anchor && editorEl.contains(anchor)) {
+                        var el = anchor.nodeType === 3 ? anchor.parentElement : anchor;
+                        var line = el.closest && el.closest('.cm-line');
+                        if (line) { line.classList.add('ink-active-line'); return; }
+                    }
+                }
+
+                // Fallback: match cursor element to line by vertical position
+                var cursor = editorEl.querySelector('.cm-cursor-primary') || editorEl.querySelector('.cm-cursor');
+                if (!cursor) return;
+                var cr = cursor.getBoundingClientRect();
+                if (!cr.height) return;
+                var mid = cr.top + cr.height / 2;
+                for (var k = 0; k < lines.length; k++) {
+                    var r = lines[k].getBoundingClientRect();
+                    if (mid >= r.top && mid < r.bottom) { lines[k].classList.add('ink-active-line'); break; }
+                }
+            }
+
+            document.addEventListener('selectionchange', function() {
+                requestAnimationFrame(updateActiveLine);
+            });
+            document.addEventListener('keydown', function() {
+                requestAnimationFrame(updateActiveLine);
+            });
+            editorEl.addEventListener('mousedown', function() {
+                requestAnimationFrame(updateActiveLine);
+            });
+        })();
     } catch(e) {
         console.error('ink-mde failed to load:', e);
     }

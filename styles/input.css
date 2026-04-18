@@ -90,6 +90,11 @@
 #editable_text_box .ink-mde-details { display: none; }
 #editable_text_box .cm-scroller { overflow: visible !important; }
 
+/* Remove the default active-line tint — JS handles marker visibility per-line */
+#editable_text_box .cm-activeLine {
+  background-color: transparent !important;
+}
+
 /* Dynamically injected share-link elements (built via JS innerHTML) */
 #temp_url {
   width: calc(100% - 70px);
