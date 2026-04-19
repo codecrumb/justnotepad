@@ -3,6 +3,7 @@ window.GistSync = (function() {
     var GIST_DESC = 'justnotepad-sync';
     var _pat = null, _gistId = null, _pullInterval = null, _pushTimer = null;
     var _pushing = false, _pulling = false, _visHandler = null;
+    var _retryCount = 0, _retryTimer = null;
 
     function getSyncedMap() {
         try { return JSON.parse(localStorage.getItem('gist_synced_map') || '{}'); } catch(e) { return {}; }
@@ -18,6 +19,14 @@ window.GistSync = (function() {
 
     function hdrs(pat) {
         return { 'Authorization': 'token ' + (pat || _pat), 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
+    }
+
+    // Exponential backoff: 15s → 30s → 60s → … → cap 5min
+    function scheduleRetry(fn) {
+        clearTimeout(_retryTimer);
+        var delay = Math.min(15000 * Math.pow(2, _retryCount), 300000);
+        _retryCount++;
+        _retryTimer = setTimeout(fn, delay);
     }
 
     async function findOrCreateGist(pat) {
@@ -51,6 +60,7 @@ window.GistSync = (function() {
 
     async function push() {
         if (!_pat || !_gistId || _pushing) return;
+        if (!navigator.onLine) return; // offline — will sync on reconnect
         _pushing = true;
         setStatus('spinning');
         try {
@@ -106,19 +116,42 @@ window.GistSync = (function() {
 
             var res = await fetch(API + '/gists/' + _gistId, { method: 'PATCH', headers: hdrs(), body: JSON.stringify({ files: files }) });
             if (!res.ok) throw new Error('Push failed: ' + res.status);
+            // Invalidate cached ETag since we just modified the gist
+            localStorage.removeItem('gist_etag');
             localStorage.setItem('gist_last_synced_at', new Date().toISOString());
+            _retryCount = 0;
             setStatus('ok');
-        } catch(e) { console.error('GistSync push:', e); setStatus('error'); }
+        } catch(e) { console.error('GistSync push:', e); setStatus('error'); scheduleRetry(push); }
         _pushing = false;
     }
 
     async function pull() {
         if (!_pat || !_gistId || _pulling) return;
+        if (!navigator.onLine) return; // offline — will sync on reconnect
         _pulling = true;
         if (!_pushing) setStatus('spinning');
         try {
-            var res = await fetch(API + '/gists/' + _gistId, { headers: hdrs() });
+            // Use ETag to skip processing when nothing has changed
+            var pullHdrs = hdrs();
+            var storedEtag = localStorage.getItem('gist_etag');
+            if (storedEtag) pullHdrs['If-None-Match'] = storedEtag;
+
+            var res = await fetch(API + '/gists/' + _gistId, { headers: pullHdrs });
+
+            if (res.status === 304) {
+                // Gist unchanged since last pull — nothing to do
+                _retryCount = 0;
+                if (!_pushing) setStatus('ok');
+                _pulling = false;
+                return;
+            }
+
             if (!res.ok) throw new Error('Pull failed: ' + res.status);
+
+            // Store new ETag for next pull
+            var newEtag = res.headers.get('ETag');
+            if (newEtag) localStorage.setItem('gist_etag', newEtag);
+
             var gist = await res.json();
             var files = gist.files;
             var meta = { version: 1, notes: [], pinned: [] };
@@ -189,8 +222,9 @@ window.GistSync = (function() {
                 showToast(changedCount === 1 ? '1 note synced' : changedCount + ' notes synced');
             }
             localStorage.setItem('gist_last_synced_at', new Date().toISOString());
+            _retryCount = 0;
             if (!_pushing) setStatus('ok');
-        } catch(e) { console.error('GistSync pull:', e); if (!_pushing) setStatus('error'); }
+        } catch(e) { console.error('GistSync pull:', e); if (!_pushing) setStatus('error'); scheduleRetry(pull); }
         _pulling = false;
     }
 
@@ -222,14 +256,18 @@ window.GistSync = (function() {
         push();
     }
 
+    function _onlineHandler() { pull(); }
+
     function startPolling() {
         _visHandler = function() { if (document.visibilityState === 'visible') pull(); };
         document.addEventListener('visibilitychange', _visHandler);
+        window.addEventListener('online', _onlineHandler);
         _pullInterval = setInterval(pull, 60000);
     }
 
     function stopPolling() {
         if (_visHandler) { document.removeEventListener('visibilitychange', _visHandler); _visHandler = null; }
+        window.removeEventListener('online', _onlineHandler);
         if (_pullInterval) { clearInterval(_pullInterval); _pullInterval = null; }
     }
 
@@ -247,11 +285,14 @@ window.GistSync = (function() {
     function disconnect() {
         _pat = null; _gistId = null;
         clearTimeout(_pushTimer);
+        clearTimeout(_retryTimer);
+        _retryCount = 0;
         stopPolling();
         localStorage.removeItem('gist_pat');
         localStorage.removeItem('gist_id');
         localStorage.removeItem('gist_last_synced_at');
         localStorage.removeItem('gist_synced_map');
+        localStorage.removeItem('gist_etag');
         setStatus('hidden');
     }
 
