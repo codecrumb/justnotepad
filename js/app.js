@@ -328,6 +328,7 @@ $(document).ready(function() {
 
         // Check total character size across all drafts:
         var current_stored_value = '';
+        var current_draft_name = '';
         var sum_of_lengths = 0;
         try {
             var allDrafts = await NoteDB.getAll();
@@ -336,6 +337,7 @@ $(document).ready(function() {
                 if (allDrafts[d].id == draft_id) {
                     if (allDrafts[d].trashed) return; // don't write to a trashed note
                     current_stored_value = allDrafts[d].value;
+                    current_draft_name = allDrafts[d].name || '';
                 }
             }
         } catch(e) { /* storage unavailable — size check skipped */ }
@@ -360,6 +362,7 @@ $(document).ready(function() {
         try {
             var _saveTempIds = JSON.parse(sessionStorage.getItem('temp_note_ids') || '[]');
             var _saveObj = { id: draft_id, timestamp: timestamp, value: new_value };
+            if (current_draft_name) _saveObj.name = current_draft_name;
             if (_saveTempIds.includes(draft_id)) _saveObj.is_temp = true;
             await NoteDB.put(_saveObj);
             sessionStorage.setItem('last_modified_id', draft_id);
@@ -379,6 +382,24 @@ $(document).ready(function() {
         count_value(new_value);
         $('#status_text').html('Saved in your browser storage as draft on ' + month_name[date.getMonth()] + '&nbsp;' + date.getDate() + ', ' + date.getFullYear() + ', at ' + ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2) + ':' + ('0' + date.getSeconds()).slice(-2));
         change_page_title(new_value);
+
+        // Update this note's sidebar tab in-place; if it's a new note (tab not yet rendered), do a full refresh.
+        var $sidebarTab = $('#sidebar-tabs-list .sidebar-tab[data-id="' + draft_id + '"]');
+        var _first_line = new_value.split('\n').find(function(l) { return l.trim(); }) || '';
+        var _preview_name = current_draft_name || _first_line.replace(/^#+\s*/, '').trim();
+        var _short_preview = $('<span></span>').text(_preview_name).html().slice(0, 50) || 'Untitled';
+        var _fmt_date;
+        if ((date.getMonth() + 1) == (new Date().getMonth() + 1)) {
+            _fmt_date = month_name[date.getMonth()] + ' ' + date.getDate() + ', ' + ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2);
+        } else {
+            _fmt_date = ('0' + (date.getMonth() + 1)).slice(-2) + '.' + ('0' + date.getDate()).slice(-2) + '.' + ('0' + date.getFullYear()).slice(-2);
+        }
+        if ($sidebarTab.length) {
+            $sidebarTab.find('.tab-preview').html(_short_preview);
+            $sidebarTab.find('.tab-date').text(_fmt_date);
+        } else {
+            list_of_drafts();
+        }
     }
 
 
