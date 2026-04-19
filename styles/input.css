@@ -90,6 +90,24 @@
 #editable_text_box .ink-mde-details { display: none; }
 #editable_text_box .cm-scroller { overflow: visible !important; }
 
+/* Links and images */
+#editable_text_box .tok-link {
+  color: #4a90d9;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dark #editable_text_box .tok-link {
+  color: #6ab0f5;
+}
+#editable_text_box .tok-url {
+  color: #888;
+  font-size: 0.9em;
+}
+/* On non-cursor lines, hide the URL portion so only the link text is visible */
+#editable_text_box .cm-line:not(.ink-active-line) .tok-url {
+  display: none;
+}
+
 /* Remove the default active-line tint — JS handles marker visibility per-line */
 #editable_text_box .cm-activeLine {
   background-color: transparent !important;

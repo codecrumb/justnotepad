@@ -180,7 +180,7 @@ $(document).ready(function() {
         var appearance = (theme === 'dark' || (theme !== 'light' && prefersDark)) ? 'dark' : 'light';
         inkEditor = ink(document.getElementById('editable_text'), {
             doc: value || '',
-            options: { appearance: appearance },
+            interface: { images: true },
             hooks: {
                 afterUpdate: function() {
                     if (!editor_updating) save();
@@ -268,6 +268,29 @@ $(document).ready(function() {
         if (inkEditor && !$(e.target).closest('.cm-editor')[0]) {
             inkEditor.focus();
         }
+    });
+
+    // Ctrl/Cmd+Click on a link or image to open its URL:
+    $('#editable_text_box').on('click', function(e) {
+        if (!e.ctrlKey && !e.metaKey) return;
+        if (!inkEditor) return;
+        var target = e.target;
+        var line = target.closest ? target.closest('.cm-line') : null;
+        if (!line) return;
+        var lineText = line.textContent;
+        var linkRegex = /!?\[([^\]]*)\]\(([^)]+)\)/g;
+        var match;
+        var clickedText = target.textContent || '';
+        var firstUrl = null;
+        while ((match = linkRegex.exec(lineText)) !== null) {
+            var url = match[2].trim();
+            if (!firstUrl) firstUrl = url;
+            if (match[1] === clickedText || match[2].trim() === clickedText) {
+                window.open(url, '_blank', 'noopener,noreferrer');
+                return;
+            }
+        }
+        if (firstUrl) window.open(firstUrl, '_blank', 'noopener,noreferrer');
     });
 
 
