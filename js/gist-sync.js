@@ -4,6 +4,18 @@ window.GistSync = (function() {
     var _pat = null, _gistId = null, _pullInterval = null, _pushTimer = null;
     var _pushing = false, _pulling = false, _visHandler = null;
 
+    function getSyncedMap() {
+        try { return JSON.parse(localStorage.getItem('gist_synced_map') || '{}'); } catch(e) { return {}; }
+    }
+    function setSyncedMap(map) {
+        localStorage.setItem('gist_synced_map', JSON.stringify(map));
+    }
+    function genId() {
+        var s = '', h = '0123456789abcdef';
+        for (var i = 0; i < 32; i++) s += h[Math.floor(Math.random() * 16)];
+        return s;
+    }
+
     function hdrs(pat) {
         return { 'Authorization': 'token ' + (pat || _pat), 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
     }
@@ -117,6 +129,8 @@ window.GistSync = (function() {
             var localMap = {};
             for (var i = 0; i < localDrafts.length; i++) { localMap[localDrafts[i].id] = localDrafts[i]; }
             var changedCount = 0;
+            var conflictCount = 0;
+            var syncedMap = getSyncedMap();
             for (var j = 0; j < meta.notes.length; j++) {
                 var mn = meta.notes[j];
                 var fname = 'note-' + mn.id + '.md';
@@ -125,6 +139,16 @@ window.GistSync = (function() {
                 var remoteTs = mn.timestamp || 0;
                 var local = localMap[mn.id];
                 if (local && local.trashed) continue; // locally trashed — don't overwrite with remote active
+                var lastSyncedTs = syncedMap[mn.id] || 0;
+                var isConflict = local
+                    && remoteTs > lastSyncedTs
+                    && local.timestamp > lastSyncedTs
+                    && local.value !== remoteContent;
+                if (isConflict) {
+                    var origName = local.name || (local.value || '').split('\n')[0].trim().slice(0, 40) || 'Note';
+                    await NoteDB.put({ id: genId(), timestamp: local.timestamp, value: local.value, name: origName + ' (sync conflict)' });
+                    conflictCount++;
+                }
                 if (!local || remoteTs > local.timestamp) {
                     var putObj = { id: mn.id, timestamp: remoteTs, value: remoteContent };
                     if (mn.name) putObj.name = mn.name;
@@ -132,6 +156,7 @@ window.GistSync = (function() {
                     changedCount++;
                     document.dispatchEvent(new CustomEvent('gistsync:note-updated', { detail: { id: mn.id, value: remoteContent, timestamp: remoteTs } }));
                 }
+                syncedMap[mn.id] = remoteTs;
             }
             // Apply remote tombstones: if tombstone is newer than local note → trash locally
             var remoteTombstoneList = meta.deleted || [];
@@ -144,6 +169,7 @@ window.GistSync = (function() {
                     document.dispatchEvent(new CustomEvent('gistsync:note-trashed', { detail: { id: tomb.id } }));
                 }
             }
+            setSyncedMap(syncedMap);
 
             if (meta.pinned && meta.pinned.length) {
                 var ep = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
@@ -154,7 +180,11 @@ window.GistSync = (function() {
                 localStorage.setItem('trash_retention', String(meta.trash_retention));
                 $('#trash-retention').val(String(meta.trash_retention));
             }
-            if (changedCount > 0) {
+            if (conflictCount > 0) {
+                document.dispatchEvent(new Event('gistsync:updated'));
+                schedulePush();
+                showConflictToast(conflictCount);
+            } else if (changedCount > 0) {
                 document.dispatchEvent(new Event('gistsync:updated'));
                 showToast(changedCount === 1 ? '1 note synced' : changedCount + ' notes synced');
             }
@@ -165,6 +195,13 @@ window.GistSync = (function() {
     }
 
     var _toastTimer = null;
+    function showConflictToast(n) {
+        var msg = n === 1 ? 'Sync conflict \u2014 a copy was saved' : n + ' sync conflicts \u2014 copies saved';
+        var $t = $('#sync-toast');
+        $t.text(msg).stop(true).fadeIn(200);
+        clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(function() { $t.fadeOut(400); }, 5000);
+    }
     function showToast(msg) {
         if (localStorage.getItem('gist_toast') === '0') return;
         var $t = $('#sync-toast');
@@ -214,6 +251,7 @@ window.GistSync = (function() {
         localStorage.removeItem('gist_pat');
         localStorage.removeItem('gist_id');
         localStorage.removeItem('gist_last_synced_at');
+        localStorage.removeItem('gist_synced_map');
         setStatus('hidden');
     }
 
