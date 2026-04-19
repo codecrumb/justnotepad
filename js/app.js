@@ -462,6 +462,7 @@ $(document).ready(function() {
         if ($(e.target).hasClass('tab-delete')) return;
         var clicked_id = $(this).data('id');
         if (clicked_id === draft_id) return;
+        if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; await doSave(); }
         await delete_current_if_empty();
         var d;
         try { d = await NoteDB.getAll(); } catch(e) { return; }
