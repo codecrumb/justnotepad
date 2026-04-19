@@ -240,10 +240,12 @@ window.GistSync = (function() {
         try {
             // Fetch remote meta first so we don't wipe notes from other devices
             var remoteMeta = { version: 1, notes: [], pinned: [] };
+            var remoteGistFiles = {};
             try {
                 var rr = await fetch(API + '/gists/' + _gistId, { headers: hdrs() });
                 if (rr.ok) {
                     var rg = await rr.json();
+                    remoteGistFiles = rg.files || {};
                     if (rg.files['_meta.json'] && rg.files['_meta.json'].content) {
                         remoteMeta = JSON.parse(rg.files['_meta.json'].content);
                     }
@@ -278,6 +280,11 @@ window.GistSync = (function() {
                 if (d.name) noteEntry.name = d.name;
                 mergedNotes[d.id] = noteEntry;
             }
+
+            // Delete orphaned note files from Gist (notes removed from DB without explicit Gist cleanup)
+            Object.keys(remoteGistFiles).forEach(function(fname) {
+                if (/^note-.+\.md$/.test(fname) && !files[fname]) files[fname] = null;
+            });
 
             // Merge pinned arrays
             var localPinned = JSON.parse(localStorage.getItem('pinned_notes') || '[]');

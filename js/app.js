@@ -575,6 +575,7 @@ $(document).ready(function() {
         $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").click(function() { $("#confirm_layer, #confirm_lightbox").hide(); });
         $("#confirm_lightbox #confirm_buttons #ok").click(async function() {
             try { await NoteDB.delete(perm_id); } catch(e) {}
+            if (GistSync.isConnected()) GistSync.schedulePush();
             $("#confirm_layer, #confirm_lightbox").hide();
             renderTrashPanel();
             list_of_drafts();
@@ -593,6 +594,7 @@ $(document).ready(function() {
             for (var ei = 0; ei < trashed.length; ei++) {
                 try { await NoteDB.delete(trashed[ei].id); } catch(e) {}
             }
+            if (GistSync.isConnected()) GistSync.schedulePush();
             $("#confirm_layer, #confirm_lightbox").hide();
             renderTrashPanel();
             list_of_drafts();
