@@ -7,7 +7,7 @@ $(document).ready(function() {
 
     // Fire the ink-mde import IMMEDIATELY — before any await — so a storage
     // failure can never block the editor from loading.
-    var inkModulePromise = import('./js/ink-mde/0.34.0/ink-mde.js').catch(function() { return import('https://esm.sh/ink-mde'); });
+    var inkModulePromise = import('./ink-mde/0.34.0/ink-mde.js').catch(function() { return import('https://esm.sh/ink-mde'); });
 
     (async function initApp() {
 
@@ -1127,7 +1127,7 @@ $(document).ready(function() {
                 $('#create_url').prop('disabled', false).removeClass('preloader_button');
                 return;
             }
-            import('./js/marked/18.0.0/marked.js').catch(function() { return import('https://esm.sh/marked'); }).then(function(module) {
+            import('./marked/18.0.0/marked.js').catch(function() { return import('https://esm.sh/marked'); }).then(function(module) {
                 var markedFn = module.marked || module.default;
                 var body = stripTitleLine(content);
                 var html = markedFn.parse ? markedFn.parse(body) : markedFn(body);
