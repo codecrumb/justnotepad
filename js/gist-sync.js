@@ -299,6 +299,10 @@ window.GistSync = (function() {
             if (!res.ok) throw new Error('Push failed: ' + res.status);
             localStorage.removeItem('gist_etag'); // invalidate ETag — gist just changed
             localStorage.setItem('gist_last_synced_at', new Date().toISOString());
+            // Record pushed timestamps so pull doesn't mis-detect conflicts
+            var pushedMap = getSyncedMap();
+            notesList.forEach(function(n) { pushedMap[n.id] = n.timestamp; });
+            setSyncedMap(pushedMap);
             _retryCount = 0;
             setStatus('ok');
         } catch(e) { console.error('GistSync push:', e); setStatus('error'); scheduleRetry(push); }
