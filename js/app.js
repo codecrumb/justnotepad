@@ -18,6 +18,11 @@ $(document).ready(function() {
     var save_the_world_message = '<h1>Save Paper. Save Trees. Save the World.</h1><h2>It seems that your text more than 2 sheets of paper...</h2><p>If you want to send your text to your friend or to another device, you can just create a "Temporary link" to sync your text.</p><p>https://justnotepad.pages.dev/faq/#16</p><p>Thanks ;-)</p>';
     var default_page_title = 'JustNotepad - Online notepad';
     var status_value_from_url = '';
+
+    // Temp notes helpers — stored only in sessionStorage, never synced
+    function getTempNotes() { return JSON.parse(sessionStorage.getItem('temp_notes') || '{}'); }
+    function saveTempNotes(obj) { sessionStorage.setItem('temp_notes', JSON.stringify(obj)); }
+    function isTempNote(id) { return id in getTempNotes(); }
     var inkEditor = null;
     var editor_updating = false;
     var saveTimer = null;
@@ -74,16 +79,9 @@ $(document).ready(function() {
         await NoteDB.open();
         await migrateFromJStorage();
         await purgeExpiredTrash();
-        // Clean up temp notes that don't belong to this tab's session
-        var _tempIds = JSON.parse(sessionStorage.getItem('temp_note_ids') || '[]');
-        var _allForCleanup = await NoteDB.getAll();
-        for (var _d of _allForCleanup) {
-            if (_d.is_temp && !_tempIds.includes(_d.id)) {
-                try { await NoteDB.delete(_d.id); } catch(e) {}
-            }
-        }
         var allDrafts = await NoteDB.getAll();
-        var activeDrafts = allDrafts.filter(function(d) { return !d.trashed; });
+        var tempDrafts = Object.values(getTempNotes());
+        var activeDrafts = allDrafts.concat(tempDrafts).filter(function(d) { return !d.trashed; });
         drafts = (activeDrafts.length > 0) ? activeDrafts : null;
     } catch(e) {
         console.error('Storage init failed:', e);
@@ -437,12 +435,13 @@ $(document).ready(function() {
         var sum_of_lengths = 0;
         try {
             var allDrafts = await NoteDB.getAll();
-            for (var d = 0; d < allDrafts.length; d++) {
-                sum_of_lengths += allDrafts[d].value.length + 100;
-                if (allDrafts[d].id == draft_id) {
-                    if (allDrafts[d].trashed) return; // don't write to a trashed note
-                    current_stored_value = allDrafts[d].value;
-                    current_draft_name = allDrafts[d].name || '';
+            var allWithTemp = allDrafts.concat(Object.values(getTempNotes()));
+            for (var d = 0; d < allWithTemp.length; d++) {
+                sum_of_lengths += allWithTemp[d].value.length + 100;
+                if (allWithTemp[d].id == draft_id) {
+                    if (allWithTemp[d].trashed) return; // don't write to a trashed note
+                    current_stored_value = allWithTemp[d].value;
+                    current_draft_name = allWithTemp[d].name || '';
                 }
             }
         } catch(e) { /* storage unavailable — size check skipped */ }
@@ -465,13 +464,17 @@ $(document).ready(function() {
         }
 
         try {
-            var _saveTempIds = JSON.parse(sessionStorage.getItem('temp_note_ids') || '[]');
             var _saveObj = { id: draft_id, timestamp: timestamp, value: new_value };
             if (current_draft_name) _saveObj.name = current_draft_name;
-            if (_saveTempIds.includes(draft_id)) _saveObj.is_temp = true;
-            await NoteDB.put(_saveObj);
+            if (isTempNote(draft_id)) {
+                var _tempObj = getTempNotes();
+                _tempObj[draft_id] = _saveObj;
+                saveTempNotes(_tempObj);
+            } else {
+                await NoteDB.put(_saveObj);
+                if (GistSync.isConnected()) GistSync.schedulePush();
+            }
             sessionStorage.setItem('last_modified_id', draft_id);
-            if (GistSync.isConnected()) GistSync.schedulePush();
         } catch(e) {
             console.error('Save failed:', e);
             showAppToast('Save failed \u2014 storage may be full or unavailable');
@@ -535,7 +538,7 @@ $(document).ready(function() {
         if (!content) return;
         var rawName;
         try {
-            var allD = await NoteDB.getAll();
+            var allD = (await NoteDB.getAll()).concat(Object.values(getTempNotes()));
             var cur = allD.find(function(d) { return d.id === draft_id; });
             rawName = (cur && cur.name) || content.split('\n')[0].replace(/^#+\s*/, '').trim().slice(0, 60);
         } catch(e) {
@@ -557,7 +560,11 @@ $(document).ready(function() {
     async function delete_current_if_empty() {
         var doc = inkEditor ? inkEditor.getDoc() : '';
         if (doc.trim() !== '') return;
-        try { await NoteDB.delete(draft_id); } catch(e) {}
+        if (isTempNote(draft_id)) {
+            var _t = getTempNotes(); delete _t[draft_id]; saveTempNotes(_t);
+        } else {
+            try { await NoteDB.delete(draft_id); } catch(e) {}
+        }
     }
 
 
@@ -570,7 +577,7 @@ $(document).ready(function() {
         if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; await doSave(); }
         await delete_current_if_empty();
         var d;
-        try { d = await NoteDB.getAll(); } catch(e) { return; }
+        try { d = (await NoteDB.getAll()).concat(Object.values(getTempNotes())); } catch(e) { return; }
         if (!d) return;
         for (var h = 0; h < d.length; h++) {
             if (d[h].id === clicked_id) {
@@ -598,11 +605,15 @@ $(document).ready(function() {
     $('#sidebar-tabs-list').on('click', '.tab-delete', async function(e) {
         e.stopPropagation();
         var del_id = $(this).closest('.sidebar-tab').data('id');
-        try { await NoteDB.trash(del_id); } catch(e) {}
-        if (GistSync.isConnected()) GistSync.schedulePush();
+        if (isTempNote(del_id)) {
+            var _dt = getTempNotes(); delete _dt[del_id]; saveTempNotes(_dt);
+        } else {
+            try { await NoteDB.trash(del_id); } catch(e) {}
+            if (GistSync.isConnected()) GistSync.schedulePush();
+        }
         if (del_id === draft_id) {
             var remaining;
-            try { remaining = await NoteDB.getActive(); } catch(e) { remaining = []; }
+            try { remaining = (await NoteDB.getActive()).concat(Object.values(getTempNotes())); } catch(e) { remaining = Object.values(getTempNotes()); }
             if (remaining && remaining.length > 0) {
                 remaining.sort(function(a,b){return b.timestamp-a.timestamp;});
                 draft_id = remaining[0].id;
@@ -717,8 +728,7 @@ $(document).ready(function() {
         ctx_target_id = $(this).data('id');
         var pinned = JSON.parse(localStorage.getItem('pinned_notes') || '[]');
         $('#ctx-pin-note').text(pinned.indexOf(ctx_target_id) !== -1 ? 'Unpin' : 'Pin');
-        var ctxTempIds = JSON.parse(sessionStorage.getItem('temp_note_ids') || '[]');
-        $('#ctx-mark-temp').text(ctxTempIds.includes(ctx_target_id) ? 'Make permanent' : 'Mark as temporary');
+        $('#ctx-mark-temp').text(isTempNote(ctx_target_id) ? 'Make permanent' : 'Mark as temporary');
         var menu = $('#note-ctx-menu');
         var x = e.clientX, y = e.clientY;
         var mw = 160, mh = 100;
@@ -744,7 +754,7 @@ $(document).ready(function() {
         var $tab = $('#sidebar-tabs-list .sidebar-tab[data-id="' + ctx_target_id + '"]');
         if (!$tab.length) return;
         var allD;
-        try { allD = await NoteDB.getAll(); } catch(e) { return; }
+        try { allD = (await NoteDB.getAll()).concat(Object.values(getTempNotes())); } catch(e) { allD = Object.values(getTempNotes()); }
         var draft = allD.find(function(d) { return d.id === ctx_target_id; });
         if (!draft) return;
         var current_name = draft.name || $tab.find('.tab-preview').text();
@@ -757,12 +767,12 @@ $(document).ready(function() {
             if (committed) return;
             committed = true;
             var new_name = $input.val().trim();
-            if (new_name) {
-                draft.name = new_name;
+            if (new_name) { draft.name = new_name; } else { delete draft.name; }
+            if (isTempNote(draft.id)) {
+                var _rt = getTempNotes(); _rt[draft.id] = draft; saveTempNotes(_rt);
             } else {
-                delete draft.name;
+                try { await NoteDB.put(draft); } catch(e) {}
             }
-            try { await NoteDB.put(draft); } catch(e) {}
             list_of_drafts();
         }
         $input.on('keydown', function(e) {
@@ -778,20 +788,27 @@ $(document).ready(function() {
     });
     $('#ctx-mark-temp').on('click', async function() {
         if (!ctx_target_id) return;
-        var tempIds = JSON.parse(sessionStorage.getItem('temp_note_ids') || '[]');
-        var idx = tempIds.indexOf(ctx_target_id);
-        var allD = await NoteDB.getAll();
-        var draft = allD.find(function(d) { return d.id === ctx_target_id; });
-        if (!draft) { $('#note-ctx-menu').hide(); return; }
-        if (idx !== -1) {
-            tempIds.splice(idx, 1);
-            delete draft.is_temp;
+        // Flush any pending save before moving the note, to avoid IndexedDB race
+        if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; await doSave(); }
+        var tempObj = getTempNotes();
+        if (isTempNote(ctx_target_id)) {
+            // Make permanent: move from sessionStorage to IndexedDB
+            var note = tempObj[ctx_target_id];
+            delete tempObj[ctx_target_id];
+            saveTempNotes(tempObj);
+            try { await NoteDB.put(note); } catch(e) {}
         } else {
-            tempIds.push(ctx_target_id);
-            draft.is_temp = true;
+            // Mark as temp: move from IndexedDB to sessionStorage
+            var allD = await NoteDB.getAll();
+            var draft = allD.find(function(d) { return d.id === ctx_target_id; });
+            if (!draft) { $('#note-ctx-menu').hide(); return; }
+            var noteToTemp = { id: draft.id, timestamp: draft.timestamp, value: draft.value };
+            if (draft.name) noteToTemp.name = draft.name;
+            tempObj[ctx_target_id] = noteToTemp;
+            saveTempNotes(tempObj);
+            try { await NoteDB.delete(ctx_target_id); } catch(e) {}
+            if (GistSync.isConnected()) GistSync.schedulePush();
         }
-        sessionStorage.setItem('temp_note_ids', JSON.stringify(tempIds));
-        await NoteDB.put(draft);
         $('#note-ctx-menu').hide();
         list_of_drafts();
     });
@@ -802,7 +819,7 @@ $(document).ready(function() {
 
     async function list_of_drafts() {
         var allDrafts;
-        try { allDrafts = await NoteDB.getAll(); } catch(e) { return; }
+        try { allDrafts = (await NoteDB.getAll()).concat(Object.values(getTempNotes())); } catch(e) { allDrafts = Object.values(getTempNotes()); }
         $('#sidebar-tabs-list').empty();
         if (!allDrafts || allDrafts.length === 0) return;
 
@@ -828,8 +845,7 @@ $(document).ready(function() {
             var short_value = $('<span></span>').text(raw_name).html().slice(0, 50) || 'Untitled';
             var is_active = (active[g].id === draft_id) ? ' active' : '';
             var is_pinned = pinned.indexOf(active[g].id) !== -1;
-            var listTempIds = JSON.parse(sessionStorage.getItem('temp_note_ids') || '[]');
-            var is_temp_cls = listTempIds.includes(active[g].id) ? ' temp-note' : '';
+            var is_temp_cls = isTempNote(active[g].id) ? ' temp-note' : '';
             $('#sidebar-tabs-list').append(
                 '<div class="sidebar-tab' + is_active + (is_pinned ? ' pinned' : '') + is_temp_cls + '" data-id="' + active[g].id + '">' +
                 '<div class="tab-date">' + formatted_date + '</div>' +
@@ -920,6 +936,7 @@ $(document).ready(function() {
         });
         $("#confirm_lightbox #confirm_buttons #ok").click(async function() {
             try { await NoteDB.clear(); } catch(e) {}
+            saveTempNotes({});
             sessionStorage.removeItem('last_modified_id');
             draft_id = generate_id();
             editor_updating = true; if (inkEditor) inkEditor.update(''); editor_updating = false;
