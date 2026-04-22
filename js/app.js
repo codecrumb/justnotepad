@@ -257,6 +257,111 @@ $(document).ready(function() {
                 requestAnimationFrame(updateActiveLine);
             });
         })();
+
+        // Task checkboxes: show feather icons on non-active task lines; click to toggle.
+        (function setupTaskCheckboxes() {
+            // Feather SVGs as CSS data URLs (stroke-only; currentColor via mask)
+            var iconSquare      = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2' ry='2'/%3E%3C/svg%3E";
+            var iconCheckSquare = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 11 12 14 22 4'/%3E%3Cpath d='M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'/%3E%3C/svg%3E";
+
+            var styleEl = document.createElement('style');
+            styleEl.id = 'task-icon-styles';
+            styleEl.textContent = [
+                // Hide marker text; the ::before icon takes its place
+                '#editable_text .task-marker-icon { font-size: 0; }',
+                '#editable_text .task-marker-icon::before {',
+                '  content: ""; display: inline-block;',
+                '  font-size: 1rem; width: 1em; height: 1em;',
+                '  background-color: currentColor;',
+                '  -webkit-mask: var(--task-icon) center/contain no-repeat;',
+                '  mask: var(--task-icon) center/contain no-repeat;',
+                '  vertical-align: -0.125em; cursor: pointer;',
+                '}',
+                '#editable_text .task-marker-unchecked { --task-icon: url("' + iconSquare + '"); }',
+                '#editable_text .task-marker-checked   { --task-icon: url("' + iconCheckSquare + '"); }',
+            ].join('\n');
+            document.head.appendChild(styleEl);
+
+            // Find the span inside a .cm-line whose full text is exactly the task marker
+            function findMarkerSpan(lineEl) {
+                var spans = lineEl.querySelectorAll('span');
+                for (var i = 0; i < spans.length; i++) {
+                    if (/^\[[ xX]\]$/.test(spans[i].textContent)) return spans[i];
+                }
+                return null;
+            }
+
+            // Stamp/unstamp icon classes on the marker span of each visible .cm-line
+            function updateTaskMarkers() {
+                document.querySelectorAll('#editable_text .cm-line').forEach(function(lineEl) {
+                    // Clear any previously stamped spans on this line first
+                    lineEl.querySelectorAll('.task-marker-icon').forEach(function(s) {
+                        s.classList.remove('task-marker-icon', 'task-marker-checked', 'task-marker-unchecked');
+                    });
+
+                    // Active line: show raw text for editing
+                    if (lineEl.classList.contains('ink-active-line')) return;
+
+                    var m = /^(\s*[-*+]\s+)\[([ xX])\]/.exec(lineEl.textContent);
+                    if (!m) return;
+
+                    var markerSpan = findMarkerSpan(lineEl);
+                    if (!markerSpan) return;
+
+                    markerSpan.classList.add('task-marker-icon');
+                    markerSpan.classList.add(/x/i.test(m[2]) ? 'task-marker-checked' : 'task-marker-unchecked');
+                });
+            }
+
+            // Re-run after any CodeMirror DOM update or active-line class change
+            new MutationObserver(function() {
+                requestAnimationFrame(updateTaskMarkers);
+            }).observe(document.getElementById('editable_text'), {
+                childList: true, subtree: true,
+                attributes: true, attributeFilter: ['class']
+            });
+
+            updateTaskMarkers();
+
+            // Click the icon to toggle the checkbox (capture phase: runs before CodeMirror moves cursor)
+            document.getElementById('editable_text').addEventListener('mousedown', function(e) {
+                // Find clicked .task-marker-icon span
+                var markerEl = e.target;
+                for (var depth = 0; depth < 4 && markerEl; depth++) {
+                    if (markerEl.classList && markerEl.classList.contains('task-marker-icon')) break;
+                    markerEl = markerEl.parentElement;
+                }
+                if (!markerEl || !markerEl.classList.contains('task-marker-icon')) return;
+                // Intercept early — before CodeMirror's bubble-phase handler moves the cursor
+
+                var lineEl = markerEl;
+                while (lineEl && !lineEl.classList.contains('cm-line')) lineEl = lineEl.parentElement;
+                if (!lineEl) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                var lineText  = lineEl.textContent;
+                var taskMatch = /^(\s*[-*+]\s+)\[([ xX])\]/.exec(lineText);
+                if (!taskMatch) return;
+
+                var newMarker     = /x/i.test(taskMatch[2]) ? '[ ]' : '[x]';
+                var checkboxStart = taskMatch[1].length;
+
+                // getDoc() is synchronous — returns a string directly
+                var doc   = inkEditor.getDoc();
+                var lines = doc.split('\n');
+                for (var i = 0; i < lines.length; i++) {
+                    if (lines[i] === lineText) {
+                        var charPos = 0;
+                        for (var j = 0; j < i; j++) charPos += lines[j].length + 1;
+                        charPos += checkboxStart;
+                        inkEditor.insert(newMarker, { start: charPos, end: charPos + 3 });
+                        return;
+                    }
+                }
+            }, true /* capture: intercept before CodeMirror */);
+        })();
     } catch(e) {
         console.error('ink-mde failed to load:', e);
     }
