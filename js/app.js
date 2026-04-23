@@ -213,10 +213,29 @@ $(document).ready(function() {
 
             var s = document.createElement('style');
             s.id = 'ink-md-preview';
-            s.textContent = '#editable_text_box .cm-line:not(.ink-active-line) ' + processingCls + ' { display: none; }';
+            s.textContent = '#editable_text_box .cm-line:not(.ink-active-line) ' + processingCls + ' { display: none; }' +
+                            ' #editable_text_box .ink-list-mark { display: inline !important; }';
             document.head.appendChild(s);
 
             var editorEl = document.getElementById('editable_text');
+
+            // Tag list-mark tokens (1. 2. - * +) so the hide rule above won't affect them.
+            var listMarkRe = /^(\d+[.)]|[-*+])$/;
+            var clsSel = processingCls; // already includes leading '.'
+            function tagListMarks() {
+                var els = editorEl.querySelectorAll(clsSel);
+                for (var m = 0; m < els.length; m++) {
+                    if (listMarkRe.test(els[m].textContent.trim())) {
+                        els[m].classList.add('ink-list-mark');
+                    } else {
+                        els[m].classList.remove('ink-list-mark');
+                    }
+                }
+            }
+            new MutationObserver(function() {
+                requestAnimationFrame(tagListMarks);
+            }).observe(editorEl, { childList: true, subtree: true, characterData: true });
+            tagListMarks();
 
             function updateActiveLine() {
                 var lines = editorEl.querySelectorAll('.cm-line');
