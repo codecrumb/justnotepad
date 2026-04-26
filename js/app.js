@@ -178,7 +178,7 @@ $(document).ready(function() {
         var appearance = (theme === 'dark' || (theme !== 'light' && prefersDark)) ? 'dark' : 'light';
         inkEditor = ink(document.getElementById('editable_text'), {
             doc: value || '',
-            interface: { images: true },
+            interface: { images: true, appearance: appearance },
             hooks: {
                 afterUpdate: function() {
                     if (!editor_updating) save();

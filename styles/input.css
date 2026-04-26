@@ -72,9 +72,16 @@
 }
 
 /* ink-mde editor overrides */
+/* Fix cursor visibility: override CM6's caret-color:transparent!important via higher-specificity !important */
+#editable_text_box .cm-content {
+  caret-color: #000 !important;
+}
+.dark #editable_text_box .cm-content {
+  caret-color: #fff !important;
+}
 #editable_text_box .cm-cursor,
 #editable_text_box .cm-cursor-primary {
-  border-left-color: #000 !important;
+  border-left: 1.5px solid #000 !important;
 }
 .dark #editable_text_box .cm-cursor,
 .dark #editable_text_box .cm-cursor-primary {
