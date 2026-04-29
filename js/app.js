@@ -385,6 +385,77 @@ $(document).ready(function() {
 
 
     //-----------------------------------------------------------------------------------------------
+    // Image upload via Imgur proxy:
+    function uploadImage(file) {
+        if (file.size > 20 * 1024 * 1024) {
+            showAppToast('Image too large (max 20 MB)');
+            return;
+        }
+        if (!inkEditor) return;
+
+        // Generate unique placeholder
+        var placeholderId = 'uploading-' + Array.from(crypto.getRandomValues(new Uint8Array(4)))
+            .map(function(b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+        var placeholder = '![' + placeholderId + ']()';
+
+        // Insert placeholder at cursor
+        inkEditor.insert(placeholder);
+
+        var formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/api/upload', { method: 'POST', body: formData })
+            .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
+            .then(function(result) {
+                var doc = inkEditor.getDoc();
+                if (result.ok && result.data.url) {
+                    var newContent = doc.replace(placeholder, '![image](' + result.data.url + ')');
+                    editor_updating = true; inkEditor.update(newContent); editor_updating = false;
+                    showAppToast('Image uploaded');
+                } else {
+                    var cleaned = doc.replace(placeholder, '');
+                    editor_updating = true; inkEditor.update(cleaned); editor_updating = false;
+                    showAppToast('Image upload failed');
+                }
+            })
+            .catch(function() {
+                var doc = inkEditor.getDoc();
+                var cleaned = doc.replace(placeholder, '');
+                editor_updating = true; inkEditor.update(cleaned); editor_updating = false;
+                showAppToast('Image upload failed');
+            });
+    }
+
+    // Paste handler: intercept image items from clipboard
+    document.getElementById('editable_text').addEventListener('paste', function(e) {
+        if (!inkEditor) return;
+        var items = e.clipboardData && e.clipboardData.items;
+        if (!items) return;
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].type && items[i].type.indexOf('image/') === 0) {
+                e.preventDefault();
+                var file = items[i].getAsFile();
+                if (file) uploadImage(file);
+                return;
+            }
+        }
+    });
+
+    // Drop handler: accept image files dropped onto the editor
+    document.getElementById('editable_text').addEventListener('drop', function(e) {
+        if (!inkEditor) return;
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (!files || files.length === 0) return;
+        for (var i = 0; i < files.length; i++) {
+            if (files[i].type && files[i].type.indexOf('image/') === 0) {
+                e.preventDefault();
+                uploadImage(files[i]);
+            }
+        }
+    });
+
+
+    //-----------------------------------------------------------------------------------------------
     // Click anywhere in the editor area to focus the editor:
     $('#editable_text_box').on('click', function(e) {
         if (inkEditor && !$(e.target).closest('.cm-editor')[0]) {
