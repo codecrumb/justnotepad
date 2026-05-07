@@ -1205,10 +1205,45 @@ $(document).ready(function() {
         await GistSync.pull();
         $('#gist-sync-now-btn').prop('disabled', false);
     });
+    var patCrypto = (function() {
+        var KEY_B64 = 'GJOdUhsC3ufPfMAnVRZsGeznLgO6uyiIgthDqDQEmUA=';
+        function b64ToBytes(b64) {
+            return Uint8Array.from(atob(b64), function(c) { return c.charCodeAt(0); });
+        }
+        function bytesToB64url(bytes) {
+            return btoa(String.fromCharCode.apply(null, Array.from(bytes)))
+                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        }
+        function b64urlToBytes(s) {
+            s = s.replace(/-/g, '+').replace(/_/g, '/');
+            while (s.length % 4) s += '=';
+            return Uint8Array.from(atob(s), function(c) { return c.charCodeAt(0); });
+        }
+        async function getKey() {
+            return crypto.subtle.importKey('raw', b64ToBytes(KEY_B64), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+        }
+        async function encrypt(pat) {
+            var key = await getKey();
+            var iv = crypto.getRandomValues(new Uint8Array(12));
+            var ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(pat));
+            var combined = new Uint8Array(12 + ct.byteLength);
+            combined.set(iv);
+            combined.set(new Uint8Array(ct), 12);
+            return bytesToB64url(combined);
+        }
+        async function decrypt(token) {
+            var bytes = b64urlToBytes(token);
+            var plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(0, 12) }, await getKey(), bytes.slice(12));
+            return new TextDecoder().decode(plain);
+        }
+        return { encrypt: encrypt, decrypt: decrypt };
+    })();
+
     $('#gist-share-device-btn').click(async function() {
         var pat = localStorage.getItem('gist_pat');
         if (!pat) return;
-        var shareUrl = location.origin + location.pathname + '#pat=' + encodeURIComponent(pat);
+        var encoded = await patCrypto.encrypt(pat);
+        var shareUrl = location.origin + location.pathname + '#pat=' + encoded;
         $('#pat-share-url').val(shareUrl);
         $('#pat-share-qr').text('Generating QR\u2026');
         $('#pat-share-overlay').show();
@@ -1235,24 +1270,33 @@ $(document).ready(function() {
         await GistSync.pull();
     });
 
-    // Auto-connect via URL fragment: justnotepad.pages.dev/#pat=ghp_xxxxx
+    // Auto-connect via URL fragment: justnotepad.pages.dev/#pat=<encrypted>
     (function() {
         var h = location.hash;
         if (h.startsWith('#pat=') && !GistSync.isConnected()) {
-            var pat = decodeURIComponent(h.slice(5));
+            var token = h.slice(5);
             history.replaceState(null, '', location.pathname + location.search);
-            if (!pat) return;
-            var msg = 'A GitHub PAT was found in the URL.<br><br>Connect Gist sync using this token?<br><small style="color:#858585">Only confirm if you created this link yourself.</small>';
-            $("#confirm_lightbox").html('<div id="confirm_message" style="font-size:130%">' + msg + '</div><div id="confirm_buttons"><div id="ok">Connect</div><div id="cancel">Cancel</div></div>');
-            $("#confirm_layer").show();
-            $("#confirm_lightbox").show();
-            $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").off('click.patfrag').on('click.patfrag', function() {
-                $("#confirm_layer, #confirm_lightbox").hide();
-            });
-            $("#confirm_lightbox #confirm_buttons #ok").off('click.patfrag').on('click.patfrag', function() {
-                $("#confirm_layer, #confirm_lightbox").hide();
-                doGistConnect(pat);
-            });
+            if (!token) return;
+            (async function() {
+                var pat;
+                try {
+                    pat = await patCrypto.decrypt(token);
+                } catch(e) {
+                    pat = decodeURIComponent(token); // fallback for old raw-PAT URLs
+                }
+                if (!pat) return;
+                var msg = 'A GitHub PAT was found in the URL.<br><br>Connect Gist sync using this token?<br><small style="color:#858585">Only confirm if you created this link yourself.</small>';
+                $("#confirm_lightbox").html('<div id="confirm_message" style="font-size:130%">' + msg + '</div><div id="confirm_buttons"><div id="ok">Connect</div><div id="cancel">Cancel</div></div>');
+                $("#confirm_layer").show();
+                $("#confirm_lightbox").show();
+                $("#confirm_layer, #confirm_lightbox #confirm_buttons #cancel").off('click.patfrag').on('click.patfrag', function() {
+                    $("#confirm_layer, #confirm_lightbox").hide();
+                });
+                $("#confirm_lightbox #confirm_buttons #ok").off('click.patfrag').on('click.patfrag', function() {
+                    $("#confirm_layer, #confirm_lightbox").hide();
+                    doGistConnect(pat);
+                });
+            })();
         }
     })();
 
